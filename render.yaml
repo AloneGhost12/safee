@@ -1,0 +1,56 @@
+services:
+  # Main API Service
+  - type: web
+    name: vault-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: HOST
+        value: 0.0.0.0
+      - key: MONGO_URI
+        fromDatabase:
+          name: vault-mongodb
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SESSION_COOKIE_NAME
+        value: pv_sess
+      - key: ALLOWED_ORIGINS
+        value: https://your-client-domain.com,https://your-app.netlify.app,https://your-app.vercel.app
+      - key: TRUST_PROXY
+        value: true
+      - key: TRUSTED_PROXIES
+        value: 127.0.0.1,::1
+      # Cloudinary (optional)
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # S3/R2 (optional)
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+    healthCheckPath: /api/health
+
+databases:
+  # MongoDB Database
+  - name: vault-mongodb
+    databaseName: vault
+    user: vault_user

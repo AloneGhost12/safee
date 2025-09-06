@@ -1,0 +1,10 @@
+This is a test document for e2e testing.
+
+It contains sample content that will be encrypted and uploaded during tests.
+
+Test data:
+- Created at: 2024-01-01T00:00:00Z
+- File type: Text document
+- Purpose: E2E testing of file encryption and upload
+
+This document should be encrypted before being stored in the cloud.

@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: vault-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: vault
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongodb-init:/docker-entrypoint-initdb.d
+    networks:
+      - vault-network
+    command: mongod --auth
+
+  # Redis for session storage (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: vault-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - vault-network
+    command: redis-server --appendonly yes
+
+  # Server API
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: vault-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      HOST: 0.0.0.0
+      MONGO_URI: mongodb://admin:password@mongodb:27017/vault?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: dev_access_secret_123
+      JWT_REFRESH_SECRET: dev_refresh_secret_456
+      SESSION_COOKIE_NAME: pv_sess
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:8080
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./server/src:/app/src:ro
+      - ./server/logs:/app/logs
+    networks:
+      - vault-network
+    depends_on:
+      - mongodb
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Client Application
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: vault-client
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:4000
+      VITE_APP_NAME: Personal Vault
+    ports:
+      - "8080:8080"
+    networks:
+      - vault-network
+    depends_on:
+      - server
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Development client (Vite dev server)
+  client-dev:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: vault-client-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:4000
+      VITE_APP_NAME: Personal Vault (Dev)
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client/src:/app/src:ro
+      - ./client/public:/app/public:ro
+      - ./client/index.html:/app/index.html:ro
+    networks:
+      - vault-network
+    depends_on:
+      - server
+    profiles:
+      - dev
+
+  # ClamAV for virus scanning (optional)
+  clamav:
+    image: clamav/clamav:stable
+    container_name: vault-clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - vault-network
+    profiles:
+      - scanning
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  clamav_data:
+    driver: local
+
+networks:
+  vault-network:
+    driver: bridge
