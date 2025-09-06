@@ -39,11 +39,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: server/package-lock.json
+          cache-dependency-path: server/package.json
 
       - name: 📥 Install Server Dependencies
         working-directory: ./server
-        run: npm ci
+        run: npm install
 
       - name: 🔍 Lint Server Code (if config exists)
         working-directory: ./server
@@ -81,11 +81,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: client/package.json
 
       - name: 📥 Install Client Dependencies
         working-directory: ./client
-        run: npm ci
+        run: npm install
 
       - name: 🔍 Lint Client Code
         working-directory: ./client
@@ -124,11 +124,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: client/package.json
 
       - name: 📥 Install Dependencies
         working-directory: ./client
-        run: npm ci
+        run: npm install
 
       - name: 🏗️ Build for Performance Testing
         working-directory: ./client
