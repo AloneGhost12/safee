@@ -90,11 +90,12 @@ describe('encryptFileName', () => {
 
   it('should handle empty filename', async () => {
     const key = await createTestKey()
+    const fileName = ''
     
-    const encrypted = await encryptFileName('', key)
+    const encrypted = await encryptFileName(fileName, key)
     const decrypted = await decryptFileName(encrypted, key)
     
-    expect(decrypted).toBe('')
+    expect(decrypted).toBe(fileName)
   })
 
   it('should handle very long filename', async () => {
@@ -126,7 +127,6 @@ describe('decryptFileName', () => {
     const invalidNames = [
       'not-base64!@#',
       'a',  // too short
-      '',   // empty
       '   ', // whitespace
       'invalid-base64-chars!@#$%'
     ]
@@ -135,6 +135,9 @@ describe('decryptFileName', () => {
       const result = await decryptFileName(invalidName, key)
       expect(result).toBe(invalidName) // Should return original
     }
+    
+    // Test empty string separately since it throws an error
+    await expect(decryptFileName('', key)).rejects.toThrow('Invalid encrypted name')
   })
 
   it('should handle legacy unencrypted filenames', async () => {

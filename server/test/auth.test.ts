@@ -17,7 +17,7 @@ beforeAll(() => {
 describe('Auth endpoints (smoke)', () => {
   it('signup returns access and sets cookie', async () => {
     const email = `test-${Date.now()}@example.com`
-    const password = 'password123'
+    const password = 'Password123!'
     const res = await request(app).post('/api/auth/signup').send({ email, password })
     
     console.log('Signup response status:', res.status)
@@ -32,7 +32,7 @@ describe('Auth endpoints (smoke)', () => {
   // Run the same test multiple times as requested
   it('signup returns access and sets cookie - run 2', async () => {
     const email = `test-${Date.now()}@example.com`
-    const password = 'password123'
+    const password = 'Password123!'
     const res = await request(app).post('/api/auth/signup').send({ email, password })
     expect(res.status).toBe(200)
     expect(typeof res.body.access).toBe('string')
@@ -41,7 +41,7 @@ describe('Auth endpoints (smoke)', () => {
 
   it('signup returns access and sets cookie - run 3', async () => {
     const email = `test-${Date.now()}@example.com`
-    const password = 'password123'
+    const password = 'Password123!'
     const res = await request(app).post('/api/auth/signup').send({ email, password })
     expect(res.status).toBe(200)
     expect(typeof res.body.access).toBe('string')
@@ -50,7 +50,7 @@ describe('Auth endpoints (smoke)', () => {
 
   it('signup returns access and sets cookie - run 4', async () => {
     const email = `test-${Date.now()}@example.com`
-    const password = 'password123'
+    const password = 'Password123!'
     const res = await request(app).post('/api/auth/signup').send({ email, password })
     expect(res.status).toBe(200)
     expect(typeof res.body.access).toBe('string')
@@ -59,7 +59,7 @@ describe('Auth endpoints (smoke)', () => {
 
   it('signup returns access and sets cookie - run 5', async () => {
     const email = `test-${Date.now()}@example.com`
-    const password = 'password123'
+    const password = 'Password123!'
     const res = await request(app).post('/api/auth/signup').send({ email, password })
     expect(res.status).toBe(200)
     expect(typeof res.body.access).toBe('string')
