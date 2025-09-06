@@ -1,0 +1,6 @@
+{
+  "name": "quick-test",
+  "scripts": {
+    "test": "node test-runner.js"
+  }
+}

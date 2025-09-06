@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateDEK, encryptWithDEK, decryptWithDEK, deriveMasterKey, wrapDEK, unwrapDEK } from '../src/crypto'
+import { generateDEK, encryptWithDEK, decryptWithDEK, deriveMasterKey, wrapDEK, unwrapDEK } from '../src/crypto/index'
 
 describe('client crypto', () => {
   it('encrypt/decrypt with DEK', async () => {

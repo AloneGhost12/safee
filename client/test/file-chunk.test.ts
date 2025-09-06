@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateDEK, encryptFileInChunks, decryptFileChunks } from '../src/crypto'
+import { generateDEK, encryptFileInChunks, decryptFileChunks } from '../src/crypto/index'
 
 describe('file chunk encryption', () => {
   it('encrypts and decrypts chunks', async () => {
