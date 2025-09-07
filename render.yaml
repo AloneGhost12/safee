@@ -25,7 +25,7 @@ services:
       - key: SESSION_COOKIE_NAME
         value: pv_sess
       - key: ALLOWED_ORIGINS
-        value: https://aloneghost12.github.io,https://aloneghost12.netlify.app
+        value: https://aloneghost12.github.io,https://aloneghost12.netlify.app,https://tridex.app
       - key: TRUST_PROXY
         value: true
       - key: TRUSTED_PROXIES
