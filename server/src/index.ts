@@ -78,23 +78,33 @@ app.use(errorHandler)
 
 async function start() {
   try {
-    // Validate required environment variables
-    const requiredEnvVars = [
-      'MONGO_URI',
+    // Validate critical environment variables (non-database)
+    const criticalEnvVars = [
       'JWT_ACCESS_SECRET',
       'JWT_REFRESH_SECRET',
       'ALLOWED_ORIGINS'
     ]
     
-    const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar])
-    if (missingEnvVars.length > 0) {
-      console.error('Missing required environment variables:', missingEnvVars)
+    const missingCriticalVars = criticalEnvVars.filter(envVar => !process.env[envVar])
+    if (missingCriticalVars.length > 0) {
+      console.error('Missing critical environment variables:', missingCriticalVars)
       process.exit(1)
     }
-    
-    // Connect to database
-    await connect()
-    console.log('Database connected successfully')
+
+    // Warn about missing database but don't exit
+    if (!process.env.MONGO_URI) {
+      console.warn('⚠️ MONGO_URI not set - database features will be unavailable')
+      console.warn('⚠️ Server will start but database operations will fail')
+    } else {
+      // Only try to connect if MONGO_URI is available
+      try {
+        await connect()
+        console.log('✅ Database connected successfully')
+      } catch (err) {
+        console.warn('⚠️ Database connection failed, but server will continue:', err)
+        console.warn('⚠️ Database features will be unavailable')
+      }
+    }
     
     // Validate environment configurations
     if (!validateCloudinaryConfig()) {
