@@ -246,7 +246,18 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
         failureReason: 'Account locked',
         ...clientInfo
       })
-      return res.status(423).json({ error: 'Account temporarily locked due to suspicious activity' })
+      
+      // Calculate remaining lockout time in seconds
+      let retryAfter = 600 // Default to 10 minutes
+      if (user.accountLockedUntil) {
+        retryAfter = Math.max(0, Math.ceil((user.accountLockedUntil.getTime() - Date.now()) / 1000))
+      }
+      
+      return res.status(423).json({ 
+        error: 'Account temporarily locked due to suspicious activity',
+        retryAfter,
+        lockoutExpiresAt: user.accountLockedUntil
+      })
     }
     
     // Check for unusual activity

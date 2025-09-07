@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react'
 import { setAuthToken } from '../lib/api'
+import { createInactivityDetector, stopGlobalInactivityDetector, InactivityDetector } from '../services/inactivityDetector'
 
 export interface Note {
   id: string
@@ -29,6 +30,8 @@ interface AppState {
   searchQuery: string
   currentNote: Note | null
   isInitialized: boolean
+  inactivityWarning: boolean
+  inactivityTimeRemaining: number
 }
 
 type AppAction =
@@ -47,6 +50,8 @@ type AppAction =
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_CURRENT_NOTE'; payload: Note | null }
   | { type: 'SET_INITIALIZED'; payload: boolean }
+  | { type: 'SET_INACTIVITY_WARNING'; payload: boolean }
+  | { type: 'SET_INACTIVITY_TIME_REMAINING'; payload: number }
   | { type: 'CLEAR_STATE' }
 
 const initialState: AppState = {
@@ -59,6 +64,8 @@ const initialState: AppState = {
   searchQuery: '',
   currentNote: null,
   isInitialized: false,
+  inactivityWarning: false,
+  inactivityTimeRemaining: 0,
 }
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -115,6 +122,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, currentNote: action.payload }
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: action.payload }
+    case 'SET_INACTIVITY_WARNING':
+      return { ...state, inactivityWarning: action.payload }
+    case 'SET_INACTIVITY_TIME_REMAINING':
+      return { ...state, inactivityTimeRemaining: action.payload }
     case 'CLEAR_STATE':
       return { ...initialState, isInitialized: true }
     default:
@@ -132,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const initializationRef = useRef(false)
   const isFirstMount = useRef(true)
   const lastInitializationTime = useRef<number>(0)
+  const inactivityDetectorRef = useRef<InactivityDetector | null>(null)
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -252,6 +264,81 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       initializationRef.current = false
     }
   }, [])
+
+  // Handle auto-logout functionality
+  const performAutoLogout = () => {
+    console.log('🚪 Auto-logout triggered due to inactivity')
+    dispatch({ type: 'SET_INACTIVITY_WARNING', payload: false })
+    dispatch({ type: 'SET_INACTIVITY_TIME_REMAINING', payload: 0 })
+    dispatch({ type: 'CLEAR_STATE' })
+  }
+
+  // Setup/teardown inactivity detection based on user login status
+  useEffect(() => {
+    if (!state.isInitialized) return
+
+    if (state.user && state.user.token) {
+      // User is logged in - start inactivity detection
+      console.log('👤 User logged in - starting inactivity detection')
+      
+      // Stop any existing detector
+      if (inactivityDetectorRef.current) {
+        inactivityDetectorRef.current.stop()
+      }
+
+      // Create new inactivity detector
+      inactivityDetectorRef.current = createInactivityDetector({
+        timeoutMinutes: 10, // 10 minutes of inactivity
+        onTimeout: performAutoLogout,
+        onWarning: (remainingSeconds) => {
+          console.log(`⚠️ Inactivity warning: ${remainingSeconds} seconds remaining`)
+          dispatch({ type: 'SET_INACTIVITY_WARNING', payload: true })
+          dispatch({ type: 'SET_INACTIVITY_TIME_REMAINING', payload: remainingSeconds })
+          
+          // Start countdown timer for the warning
+          const countdownInterval = setInterval(() => {
+            const remaining = inactivityDetectorRef.current?.getRemainingTime() || 0
+            dispatch({ type: 'SET_INACTIVITY_TIME_REMAINING', payload: remaining })
+            
+            if (remaining <= 0) {
+              clearInterval(countdownInterval)
+            }
+          }, 1000)
+          
+          // Clear countdown when warning time expires
+          setTimeout(() => {
+            clearInterval(countdownInterval)
+          }, remainingSeconds * 1000)
+        },
+        warningBeforeTimeoutSeconds: 60 // Show warning 1 minute before logout
+      })
+
+      inactivityDetectorRef.current.start()
+    } else {
+      // User is logged out - stop inactivity detection
+      console.log('🚫 User logged out - stopping inactivity detection')
+      
+      if (inactivityDetectorRef.current) {
+        inactivityDetectorRef.current.stop()
+        inactivityDetectorRef.current = null
+      }
+      
+      // Clear inactivity warning state
+      dispatch({ type: 'SET_INACTIVITY_WARNING', payload: false })
+      dispatch({ type: 'SET_INACTIVITY_TIME_REMAINING', payload: 0 })
+      
+      // Also stop the global detector to be safe
+      stopGlobalInactivityDetector()
+    }
+
+    // Cleanup on component unmount
+    return () => {
+      if (inactivityDetectorRef.current) {
+        inactivityDetectorRef.current.stop()
+        inactivityDetectorRef.current = null
+      }
+    }
+  }, [state.user, state.isInitialized])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

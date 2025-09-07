@@ -21,7 +21,7 @@ export function getClientInfo(req: Request) {
 
 export class SecurityManager {
   private static readonly MAX_FAILED_ATTEMPTS = 5
-  private static readonly LOCKOUT_DURATION_MINUTES = 30
+  private static readonly LOCKOUT_DURATION_MINUTES = 10
   private static readonly UNUSUAL_ACTIVITY_THRESHOLD = 3
 
   /**

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sidebar } from '@/components/Sidebar'
+import { InactivityWarning } from '@/components/InactivityWarning'
 import { authAPI } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
+import { getInactivityDetector } from '@/services/inactivityDetector'
 
 interface SharedLayoutProps {
   children: React.ReactNode
@@ -60,8 +62,25 @@ export function SharedLayout({ children, title, icon, headerActions }: SharedLay
     setSidebarOpen(!sidebarOpen)
   }
 
+  const handleStayLoggedIn = () => {
+    console.log('👤 User chose to stay logged in - resetting inactivity timer')
+    
+    // Reset the inactivity timer
+    const detector = getInactivityDetector()
+    if (detector) {
+      detector.recordActivity()
+    }
+    
+    // Clear the warning state
+    dispatch({ type: 'SET_INACTIVITY_WARNING', payload: false })
+    dispatch({ type: 'SET_INACTIVITY_TIME_REMAINING', payload: 0 })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Inactivity Warning Modal */}
+      <InactivityWarning onStayLoggedIn={handleStayLoggedIn} />
+      
       <div className="flex">
         {/* Sidebar */}
         <Sidebar 

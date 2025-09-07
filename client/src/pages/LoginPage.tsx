@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { AccountLockoutWarning } from '@/components/AccountLockoutWarning'
 import { authAPI } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
 import { Eye, EyeOff, Lock, Mail, Shield, Key } from 'lucide-react'
@@ -18,6 +19,8 @@ export function LoginPage() {
   const [requiresEmergencyVerification, setRequiresEmergencyVerification] = useState(false)
   const [useBackupCode, setUseBackupCode] = useState(false)
   const [backupCode, setBackupCode] = useState('')
+  const [accountLocked, setAccountLocked] = useState(false)
+  const [lockoutTimeRemaining, setLockoutTimeRemaining] = useState(0)
   
   // Emergency verification fields
   const [username, setUsername] = useState('')
@@ -25,6 +28,12 @@ export function LoginPage() {
   
   const { dispatch } = useApp()
   const navigate = useNavigate()
+
+  const handleRetryAfterCooldown = () => {
+    setAccountLocked(false)
+    setLockoutTimeRemaining(0)
+    setError('')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,6 +105,14 @@ export function LoginPage() {
         if (err.status === 418 && err.response?.requiresEmergencyVerification) {
           setRequiresEmergencyVerification(true)
           setError('Unusual activity detected. Please verify your identity with additional information.')
+        } else if (err.status === 423) {
+          // Account is locked
+          setAccountLocked(true)
+          
+          // Extract lockout time from error response
+          const retryAfter = err.response?.retryAfter || 600 // Default to 10 minutes (600 seconds)
+          setLockoutTimeRemaining(retryAfter)
+          setError('') // Clear error as we'll show the lockout warning instead
         } else {
           setError(err.message || 'Login failed')
         }
@@ -186,6 +203,12 @@ export function LoginPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {/* Account Lockout Warning */}
+          <AccountLockoutWarning 
+            lockoutTimeRemaining={lockoutTimeRemaining}
+            onRetryAfterCooldown={handleRetryAfterCooldown}
+          />
+
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
               {error}
@@ -378,7 +401,7 @@ export function LoginPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading}
+              disabled={loading || accountLocked}
             >
               {loading ? 'Verifying...' : requiresEmergencyVerification ? 'Verify Identity' : requires2FA ? 'Verify & Sign In' : 'Sign in'}
             </Button>
