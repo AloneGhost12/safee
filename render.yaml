@@ -24,7 +24,7 @@ services:
       - key: SESSION_COOKIE_NAME
         value: pv_sess
       - key: ALLOWED_ORIGINS
-        value: https://your-client-domain.com,https://your-app.netlify.app,https://your-app.vercel.app
+        value: https://AloneGhost12.github.io,https://your-client-domain.com,https://your-app.netlify.app,https://your-app.vercel.app
       - key: TRUST_PROXY
         value: true
       - key: TRUSTED_PROXIES
