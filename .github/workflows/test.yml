@@ -8,27 +8,13 @@ on:
 
 env:
   NODE_VERSION: '20'
-  MONGODB_URI: 'mongodb://localhost:27017/vault-test'
-  ACCESS_TOKEN_SECRET: 'test-access-token-secret-for-ci-minimum-32-characters'
-  REFRESH_TOKEN_SECRET: 'test-refresh-token-secret-for-ci-minimum-32-characters'
   NODE_ENV: 'test'
 
 jobs:
-  # Job 1: Unit Tests (Server)
+  # Job 1: Unit Tests (Server) - Minimal Environment Tests
   unit-tests-server:
     name: 🔧 Server Unit Tests
     runs-on: ubuntu-latest
-    
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd mongo
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: 📁 Checkout Repository
@@ -61,10 +47,6 @@ jobs:
             echo "Attempting ultra-simple test..."
             timeout 30s node ../ci-test-simple.js
           }
-        env:
-          MONGODB_URI: ${{ env.MONGODB_URI }}
-          ACCESS_TOKEN_SECRET: ${{ env.ACCESS_TOKEN_SECRET }}
-          REFRESH_TOKEN_SECRET: ${{ env.REFRESH_TOKEN_SECRET }}
         continue-on-error: true
 
   # Job 2: Unit Tests (Client)
