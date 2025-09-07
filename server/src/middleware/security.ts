@@ -65,6 +65,12 @@ export const authRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use x-forwarded-for header for Render, fallback to req.ip
+    const forwarded = req.headers['x-forwarded-for'] as string
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'unknown'
+    return ip
+  },
   // Skip rate limiting for whitelisted IPs in development
   skip: (req) => {
     if (process.env.NODE_ENV === 'development' && 
@@ -88,6 +94,12 @@ export const loginRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use x-forwarded-for header for Render, fallback to req.ip
+    const forwarded = req.headers['x-forwarded-for'] as string
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'unknown'
+    return ip
+  },
   skipSuccessfulRequests: true, // Don't count successful requests
 })
 
