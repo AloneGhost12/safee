@@ -4,39 +4,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Personal Vault</title>
-    <link rel="icon" type="image/x-icon" href="/safee/favicon.ico" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     
-    <!-- Enhanced SPA Redirect for GitHub Pages and subdirectory deployments -->
+    <!-- Enhanced SPA Redirect for root deployment -->
     <script>
-      // Enhanced redirect for GitHub Pages SPA with base path support
+      // Simple redirect for root deployment SPA
       var l = window.location;
-      var basePath = '/safee/'; // This should match your deployment base path
-      var base = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath;
+      var basePath = '/'; // Root deployment
+      var base = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
       
       console.log('🔄 404 Redirect Debug:', {
         requestedPath: l.pathname,
         hostname: l.hostname,
         basePath: basePath,
         redirectTo: base,
-        isSubdirectory: l.pathname.startsWith('/safee/'),
         currentURL: l.href
       });
       
-      // Check if we're already in the correct base path
-      if (l.pathname.startsWith(basePath) && l.pathname !== basePath) {
-        // Store the intended path in sessionStorage so the app can pick it up
-        var relativePath = l.pathname.substring(basePath.length - 1); // Keep the leading slash
-        sessionStorage.setItem('redirectPath', relativePath + l.search + l.hash);
-        console.log('🔄 Storing relative path for SPA routing:', relativePath);
-      } else if (l.pathname === '/' || !l.pathname.startsWith(basePath)) {
-        // If at root or outside base path, just redirect to base
-        sessionStorage.setItem('redirectPath', '/vault'); // Default to vault page
-        console.log('🔄 Root access, redirecting to default page');
+      // Store the intended path for SPA routing
+      if (l.pathname !== '/') {
+        sessionStorage.setItem('redirectPath', l.pathname + l.search + l.hash);
+        console.log('🔄 Storing path for SPA routing:', l.pathname);
       }
       
-      // Always redirect to the base URL and let the SPA handle routing
-      console.log('🔄 Redirecting to:', base);
-      l.replace(base);
+      // Redirect to root and let React Router handle it
+      console.log('🔄 Redirecting to root for SPA routing');
+      l.replace(base + '/' + l.search + l.hash);
     </script>
   </head>
   <body>

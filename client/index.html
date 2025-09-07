@@ -6,19 +6,13 @@
     <title>Personal Vault</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     
-    <!-- GitHub Pages SPA Redirect Handler -->
+    <!-- Simple SPA redirect handler for root deployment -->
     <script>
-      // Enhanced redirect handler for GitHub Pages SPA with base path support
+      // Simple redirect handler for root deployment
       (function() {
-        var basePath = '%VITE_BASE_PATH%' || '/';
         var redirectPath = sessionStorage.getItem('redirectPath');
         
-        // Clean up base path (remove trailing slash for comparison)
-        var cleanBasePath = basePath.replace(/\/$/, '');
-        
-        console.log('🔧 Base Path Handler:', {
-          basePath: basePath,
-          cleanBasePath: cleanBasePath,
+        console.log('🔧 Root Path Handler:', {
           currentPath: window.location.pathname,
           redirectPath: redirectPath
         });
@@ -26,26 +20,14 @@
         if (redirectPath) {
           sessionStorage.removeItem('redirectPath');
           
-          // Clean up the path (remove base path prefix if present)
-          redirectPath = redirectPath.replace(new RegExp('^' + cleanBasePath), '');
-          
           console.log('🔄 Processing redirect:', {
-            originalPath: sessionStorage.getItem('redirectPath'),
-            cleanedPath: redirectPath
+            redirectTo: redirectPath
           });
           
           // Use history API to navigate to the intended route
           if (redirectPath && redirectPath !== '/') {
-            window.history.replaceState(null, null, cleanBasePath + redirectPath);
+            window.history.replaceState(null, null, redirectPath);
           }
-        }
-        
-        // Handle base path mismatch
-        if (cleanBasePath !== '' && !window.location.pathname.startsWith(cleanBasePath)) {
-          console.log('🔄 Correcting base path mismatch');
-          var currentPath = window.location.pathname;
-          // Redirect to correct base path
-          window.location.replace(window.location.origin + cleanBasePath + currentPath);
         }
       })();
     </script>

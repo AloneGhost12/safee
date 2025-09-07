@@ -9,7 +9,7 @@ echo "🚀 Building Personal Vault for tridex.app deployment..."
 
 # Set the environment for production
 export NODE_ENV=production
-export VITE_BASE_PATH=/safee/
+export VITE_BASE_PATH="/"
 export VITE_API_URL=https://safee-y8iw.onrender.com
 export VITE_APP_NAME="Personal Vault"
 
