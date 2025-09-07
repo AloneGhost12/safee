@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react'
 import { FileUpload } from '@/components/FileUpload'
 import { FileManager, FileManagerRef } from '@/components/FileManager'
+import { SharedLayout } from '@/components/SharedLayout'
 import { Button } from '@/components/ui/button'
-import { Upload, List } from 'lucide-react'
+import { Upload, List, FolderOpen } from 'lucide-react'
 
 export const FilesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse')
@@ -24,32 +25,37 @@ export const FilesPage: React.FC = () => {
     setActiveTab('browse')
   }
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Encrypted File Vault</h1>
-        <div className="flex space-x-2">
-          <Button
-            variant={activeTab === 'browse' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('browse')}
-            className="flex items-center space-x-2"
-          >
-            <List className="h-4 w-4" />
-            <span>Browse Files</span>
-          </Button>
-          <Button
-            variant={activeTab === 'upload' ? 'default' : 'outline'}
-            onClick={handleUploadClick}
-            className="flex items-center space-x-2"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Upload Files</span>
-          </Button>
-        </div>
-      </div>
+  const headerActions = (
+    <div className="flex space-x-2">
+      <Button
+        variant={activeTab === 'browse' ? 'default' : 'outline'}
+        onClick={() => setActiveTab('browse')}
+        className="flex items-center space-x-2"
+        size="sm"
+      >
+        <List className="h-4 w-4" />
+        <span className="hidden sm:inline">Browse Files</span>
+      </Button>
+      <Button
+        variant={activeTab === 'upload' ? 'default' : 'outline'}
+        onClick={handleUploadClick}
+        className="flex items-center space-x-2"
+        size="sm"
+      >
+        <Upload className="h-4 w-4" />
+        <span className="hidden sm:inline">Upload Files</span>
+      </Button>
+    </div>
+  )
 
+  return (
+    <SharedLayout
+      title="Encrypted File Vault"
+      icon={<FolderOpen className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />}
+      headerActions={headerActions}
+    >
       <div className="bg-card rounded-lg border shadow-sm">
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <FileManager ref={fileManagerRef} onUploadClick={handleUploadClick} />
         </div>
       </div>
@@ -59,6 +65,6 @@ export const FilesPage: React.FC = () => {
         onClose={handleUploadClose}
         onUploadComplete={handleUploadComplete}
       />
-    </div>
+    </SharedLayout>
   )
 }

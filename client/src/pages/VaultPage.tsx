@@ -8,7 +8,7 @@ import { useCrypto } from '@/hooks/useCrypto'
 import { NotesList } from '@/components/NotesList'
 import { NoteEditor } from '@/components/NoteEditor'
 import { TagFilter } from '@/components/TagFilter'
-import { Sidebar } from '@/components/Sidebar'
+import { SharedLayout } from '@/components/SharedLayout'
 import { 
   Search, 
   Plus, 
@@ -25,7 +25,6 @@ export function VaultPage() {
   const navigate = useNavigate()
   
   const [masterKey, setMasterKey] = useState<CryptoKey | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showNoteEditor, setShowNoteEditor] = useState(false)
 
   useEffect(() => {
@@ -124,108 +123,86 @@ export function VaultPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex">
-        {/* Sidebar */}
-        <Sidebar 
-          open={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          onLogout={handleLogout}
+  const headerActions = (
+    <>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Input
+          type="text"
+          placeholder="Search notes..."
+          value={state.searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-10 w-32 sm:w-48 lg:w-64"
         />
+      </div>
 
-        {/* Main content */}
-        <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-          {/* Header */}
-          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                    <Shield className="h-6 w-6 mr-2 text-blue-600" />
-                    Personal Vault
-                  </h1>
-                  {state.user && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {state.user.email}
-                    </span>
-                  )}
-                </div>
+      {/* Actions */}
+      <Button onClick={handleCreateNote} size="sm" className="hidden sm:flex">
+        <Plus className="h-4 w-4 mr-2" />
+        New Note
+      </Button>
+      
+      <Button onClick={handleCreateNote} size="sm" className="sm:hidden">
+        <Plus className="h-4 w-4" />
+      </Button>
 
-                <div className="flex items-center space-x-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type="text"
-                      placeholder="Search notes..."
-                      value={state.searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="pl-10 w-64"
-                    />
-                  </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => navigate('/settings')}
+        className="hidden sm:flex"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
 
-                  {/* Actions */}
-                  <Button onClick={handleCreateNote} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Note
-                  </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleLogout}
+        className="hidden sm:flex"
+      >
+        <LogOut className="h-4 w-4" />
+      </Button>
+    </>
+  )
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate('/settings')}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
+  return (
+    <SharedLayout 
+      title="Personal Vault"
+      icon={<Shield className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />}
+      headerActions={headerActions}
+    >
+      {state.error && (
+        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          {state.error}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadNotes}
+            className="ml-auto"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </header>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+        {/* Tag Filter */}
+        <div className="lg:col-span-1">
+          <TagFilter />
+        </div>
 
-          {/* Content */}
-          <main className="p-6">
-            {state.error && (
-              <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md flex items-center">
-                <AlertCircle className="h-5 w-5 mr-2" />
-                {state.error}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={loadNotes}
-                  className="ml-auto"
-                >
-                  Retry
-                </Button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Tag Filter */}
-              <div className="lg:col-span-1">
-                <TagFilter />
-              </div>
-
-              {/* Notes List */}
-              <div className="lg:col-span-3">
-                <NotesList
-                  notes={filteredNotes}
-                  onSelectNote={(note) => {
-                    dispatch({ type: 'SET_CURRENT_NOTE', payload: note })
-                    setShowNoteEditor(true)
-                  }}
-                />
-              </div>
-            </div>
-          </main>
+        {/* Notes List */}
+        <div className="lg:col-span-3">
+          <NotesList
+            notes={filteredNotes}
+            onSelectNote={(note) => {
+              dispatch({ type: 'SET_CURRENT_NOTE', payload: note })
+              setShowNoteEditor(true)
+            }}
+          />
         </div>
       </div>
 
@@ -240,6 +217,6 @@ export function VaultPage() {
           onSave={loadNotes}
         />
       )}
-    </div>
+    </SharedLayout>
   )
 }
