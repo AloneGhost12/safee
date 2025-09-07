@@ -159,7 +159,9 @@ async function request<T>(
     let response = await fetch(url, config)
     
     // If unauthorized and we have a token, try to refresh it
-    if (response.status === 401 && authToken && !endpoint.includes('/auth/')) {
+    // Also handle 500 errors as potential auth issues in production
+    if ((response.status === 401 || response.status === 500) && authToken && !endpoint.includes('/auth/')) {
+      console.log(`🔒 Auth-related error (${response.status}), attempting token refresh...`)
       try {
         const newToken = await refreshAuthToken()
         
@@ -171,6 +173,22 @@ async function request<T>(
         
         response = await fetch(url, config)
       } catch (refreshError) {
+        console.error('❌ Token refresh failed, clearing auth state')
+        // Clear invalid auth state and redirect to login
+        const currentPath = window.location.pathname
+        const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery'
+        
+        if (!isPublicPage && !sessionStorage.getItem('redirecting-to-login')) {
+          console.log('🔄 Redirecting to login due to auth failure')
+          sessionStorage.setItem('redirecting-to-login', 'true')
+          // Clear invalid user data
+          localStorage.removeItem('user')
+          setAuthToken(null)
+          setTimeout(() => {
+            sessionStorage.removeItem('redirecting-to-login')
+            window.location.href = '/login'
+          }, 100)
+        }
         // Refresh failed, throw the original error
         throw new APIError(401, 'Authentication failed')
       }

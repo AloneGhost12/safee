@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VITE_BASE_PATH || '/', // Default to root path for most deployments
+  base: process.env.VITE_BASE_PATH || '/', // Use /safee/ for tridex.app deployment
   server: { 
     port: 5179,
     proxy: {
