@@ -1,12 +1,33 @@
 // Determine API base URL based on environment
 const getApiBase = () => {
-  // In production, use the full server URL
-  if (import.meta.env.PROD && import.meta.env.VITE_API_URL) {
-    return `${import.meta.env.VITE_API_URL}/api`
+  // Check if we're in production
+  const isProduction = import.meta.env.PROD
+  const isDevelopment = import.meta.env.DEV
+  
+  console.log('🔧 API Base Detection:', {
+    isProduction,
+    isDevelopment,
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    hostname: window.location.hostname
+  })
+  
+  // In production, use the configured API URL
+  if (isProduction && import.meta.env.VITE_API_URL) {
+    const apiBase = `${import.meta.env.VITE_API_URL}/api`
+    console.log('🎯 Using production API:', apiBase)
+    return apiBase
   }
   
-  // In development, use proxy setup
-  return '/api'
+  // In development, check if we're on localhost
+  if (isDevelopment || window.location.hostname === 'localhost') {
+    console.log('🏠 Using development proxy: /api')
+    return '/api'
+  }
+  
+  // Fallback for production without environment variable
+  const fallbackApi = 'https://safee-y8iw.onrender.com/api'
+  console.log('⚠️ Using fallback API:', fallbackApi)
+  return fallbackApi
 }
 
 const API_BASE = getApiBase()
@@ -60,7 +81,10 @@ async function refreshAuthToken(): Promise<string> {
   if (lastRefreshFailure) {
     const timeSinceFailure = Date.now() - parseInt(lastRefreshFailure)
     if (timeSinceFailure < 30000) { // 30 seconds cooldown
-      console.log('⏳ Token refresh in cooldown period, skipping...')
+      console.log('⏳ Token refresh in cooldown period, skipping...', {
+        timeSinceFailure: Math.round(timeSinceFailure / 1000),
+        cooldownRemaining: Math.round((30000 - timeSinceFailure) / 1000)
+      })
       throw new Error('Token refresh in cooldown period')
     }
   }
@@ -68,8 +92,15 @@ async function refreshAuthToken(): Promise<string> {
   isRefreshing = true
 
   try {
-    console.log('🔄 Attempting token refresh...')
-    const response = await fetch(`${API_BASE}/auth/refresh`, {
+    const refreshUrl = `${API_BASE}/auth/refresh`
+    console.log('🔄 Attempting token refresh...', { 
+      apiBase: API_BASE, 
+      refreshUrl,
+      isProduction: import.meta.env.PROD,
+      origin: window.location.origin
+    })
+    
+    const response = await fetch(refreshUrl, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -79,13 +110,32 @@ async function refreshAuthToken(): Promise<string> {
 
     if (!response.ok) {
       console.log('❌ Token refresh failed with status:', response.status)
-      throw new Error('Token refresh failed')
+      const errorText = await response.text().catch(() => 'Unknown error')
+      console.log('❌ Token refresh error details:', errorText)
+      
+      // Log additional context for debugging
+      console.log('🔍 Refresh context:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: refreshUrl,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      
+      throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
     const newToken = data.access
     
-    console.log('✅ Token refresh successful')
+    if (!newToken) {
+      console.error('❌ Token refresh returned no access token')
+      throw new Error('No access token received')
+    }
+    
+    console.log('✅ Token refresh successful', {
+      tokenLength: newToken.length,
+      tokenPrefix: newToken.substring(0, 20) + '...'
+    })
     // Clear any previous failure timestamp
     sessionStorage.removeItem('last-refresh-failure')
     setAuthToken(newToken)
@@ -106,17 +156,24 @@ async function refreshAuthToken(): Promise<string> {
     
     // Only redirect if we're not already on login/register pages and not in the middle of navigation
     const currentPath = window.location.pathname
-    const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery'
+    const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery' || 
+                        currentPath.includes('/login') || currentPath.includes('/register') || currentPath.includes('/recovery')
     
     if (!isPublicPage) {
-      console.log('🔄 Redirecting to login due to token refresh failure')
+      console.log('🔄 Redirecting to login due to token refresh failure', {
+        currentPath,
+        origin: window.location.origin
+      })
       // Use a flag to prevent multiple redirections
       if (!sessionStorage.getItem('redirecting-to-login')) {
         sessionStorage.setItem('redirecting-to-login', 'true')
         // Use setTimeout to prevent immediate redirect during other operations
         setTimeout(() => {
           sessionStorage.removeItem('redirecting-to-login')
-          window.location.href = '/login'
+          // Handle base paths properly (e.g., /safee/login)
+          const basePath = window.location.pathname.split('/')[1]
+          const loginPath = (basePath && basePath !== 'login' && !isPublicPage) ? `/${basePath}/login` : '/login'
+          window.location.href = window.location.origin + loginPath
         }, 100)
       }
     }

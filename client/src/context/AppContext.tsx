@@ -130,9 +130,18 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
   const initializationRef = useRef(false)
+  const isFirstMount = useRef(true)
+  const lastInitializationTime = useRef<number>(0)
 
   // Load user from localStorage on mount
   useEffect(() => {
+    // Prevent rapid re-initialization (less than 1 second apart)
+    const now = Date.now()
+    if (now - lastInitializationTime.current < 1000) {
+      console.log('⏭️ Skipping rapid re-initialization')
+      return
+    }
+    
     // Prevent multiple initialization attempts
     if (initializationRef.current) {
       console.log('⏭️ Skipping duplicate initialization attempt')
@@ -140,28 +149,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     
     initializationRef.current = true
-    console.log('🔄 AppProvider initializing...')
+    lastInitializationTime.current = now
+    console.log('🔄 AppProvider initializing...', { isFirstMount: isFirstMount.current })
     
     const initializeAuth = async () => {
       try {
-        // Clear any stuck redirection flags
-        sessionStorage.removeItem('redirecting-to-login')
+        // Clear any stuck redirection flags on first mount only
+        if (isFirstMount.current) {
+          sessionStorage.removeItem('redirecting-to-login')
+          isFirstMount.current = false
+        }
         
         const savedUser = localStorage.getItem('user')
         if (savedUser) {
           console.log('👤 Found saved user in localStorage')
           try {
             const user = JSON.parse(savedUser)
-            console.log('👤 Parsed user:', { id: user.id, email: user.email })
+            console.log('👤 Parsed user:', { id: user.id, email: user.email, hasToken: !!user.token })
             
             // Validate the user object has required fields
             if (user.id && user.email && user.token) {
-              dispatch({ type: 'SET_USER', payload: user })
-              // Set the auth token for API requests
-              setAuthToken(user.token)
-              console.log('🔑 Auth token set')
+              // Additional token validation - check if it looks like a JWT
+              const tokenParts = user.token.split('.')
+              if (tokenParts.length === 3) {
+                dispatch({ type: 'SET_USER', payload: user })
+                // Set the auth token for API requests
+                setAuthToken(user.token)
+                console.log('🔑 Auth token set and validated')
+              } else {
+                console.warn('⚠️ Invalid token format, clearing user data')
+                localStorage.removeItem('user')
+                setAuthToken(null)
+              }
             } else {
-              console.warn('⚠️ Invalid user object in localStorage, clearing...')
+              console.warn('⚠️ Invalid user object in localStorage, clearing...', {
+                hasId: !!user.id,
+                hasEmail: !!user.email,
+                hasToken: !!user.token
+              })
               localStorage.removeItem('user')
               setAuthToken(null)
             }
@@ -178,8 +203,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.error('❌ Error during auth initialization:', error)
         setAuthToken(null)
       } finally {
-        dispatch({ type: 'SET_INITIALIZED', payload: true })
-        console.log('✅ AppProvider initialized')
+        // Add a small delay to prevent race conditions
+        setTimeout(() => {
+          dispatch({ type: 'SET_INITIALIZED', payload: true })
+          console.log('✅ AppProvider initialized')
+        }, 100)
       }
     }
 
@@ -197,11 +225,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Only save if user has all required fields
       if (state.user.id && state.user.email && state.user.token) {
         console.log('💾 Saving user to localStorage')
-        localStorage.setItem('user', JSON.stringify(state.user))
-        // Update auth token when user changes
-        setAuthToken(state.user.token)
+        try {
+          localStorage.setItem('user', JSON.stringify(state.user))
+          // Update auth token when user changes
+          setAuthToken(state.user.token)
+        } catch (error) {
+          console.error('❌ Failed to save user to localStorage:', error)
+        }
       } else {
-        console.warn('⚠️ Attempting to save incomplete user object, skipping...')
+        console.warn('⚠️ Attempting to save incomplete user object, skipping...', {
+          hasId: !!state.user.id,
+          hasEmail: !!state.user.email,
+          hasToken: !!state.user.token
+        })
       }
     } else {
       console.log('🗑️ Removing user from localStorage')
@@ -209,6 +245,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setAuthToken(null)
     }
   }, [state.user, state.isInitialized])
+
+  // Reset initialization flag when unmounting (for development hot reload)
+  useEffect(() => {
+    return () => {
+      initializationRef.current = false
+    }
+  }, [])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
