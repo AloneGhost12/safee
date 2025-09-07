@@ -10,16 +10,18 @@ import {
   LogOut,
   Menu,
   X,
-  TestTube
+  TestTube,
+  Loader2
 } from 'lucide-react'
 
 interface SidebarProps {
   open: boolean
   onToggle: () => void
   onLogout: () => void
+  loggingOut?: boolean
 }
 
-export function Sidebar({ open, onToggle, onLogout }: SidebarProps) {
+export function Sidebar({ open, onToggle, onLogout, loggingOut = false }: SidebarProps) {
   const { state } = useApp()
   const navigate = useNavigate()
 
@@ -126,9 +128,16 @@ export function Sidebar({ open, onToggle, onLogout }: SidebarProps) {
               variant="ghost"
               className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm sm:text-base h-10 sm:h-auto"
               onClick={onLogout}
+              disabled={loggingOut}
             >
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
-              <span className="truncate">Sign Out</span>
+              {loggingOut ? (
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+              )}
+              <span className="truncate">
+                {loggingOut ? 'Signing Out...' : 'Sign Out'}
+              </span>
             </Button>
 
             {/* User info */}

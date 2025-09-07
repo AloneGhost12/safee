@@ -116,7 +116,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: action.payload }
     case 'CLEAR_STATE':
-      return initialState
+      return { ...initialState, isInitialized: true }
     default:
       return state
   }

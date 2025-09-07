@@ -820,6 +820,20 @@ Store these codes in a secure location and do not share them with anyone.`
                           </div>
                         ))}
 
+                        {/* Validation Status */}
+                        <div className="mb-4 space-y-2">
+                          {securityQuestions.map((sq, index) => (
+                            <div key={index} className="text-xs">
+                              <div className={`flex items-center gap-2 ${sq.question.length >= 10 ? 'text-green-600' : 'text-red-600'}`}>
+                                {sq.question.length >= 10 ? '✓' : '✗'} Question {index + 1}: {sq.question.length}/10 chars minimum
+                              </div>
+                              <div className={`flex items-center gap-2 ${sq.answer.length >= 3 ? 'text-green-600' : 'text-red-600'}`}>
+                                {sq.answer.length >= 3 ? '✓' : '✗'} Answer {index + 1}: {sq.answer.length}/3 chars minimum
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
                         <Button 
                           onClick={handleSetupSecurityQuestions}
                           disabled={loading || securityQuestions.some(sq => sq.question.length < 10 || sq.answer.length < 3)}
@@ -827,6 +841,12 @@ Store these codes in a secure location and do not share them with anyone.`
                         >
                           {loading ? 'Saving...' : 'Save Security Questions'}
                         </Button>
+                        
+                        {securityQuestions.some(sq => sq.question.length < 10 || sq.answer.length < 3) && (
+                          <p className="text-xs text-red-600 mt-2">
+                            ⚠️ Button disabled: All questions need 10+ characters and all answers need 3+ characters
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

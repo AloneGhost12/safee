@@ -13,6 +13,7 @@ interface SharedLayoutProps {
 
 export function SharedLayout({ children, title, icon, headerActions }: SharedLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
 
@@ -35,12 +36,22 @@ export function SharedLayout({ children, title, icon, headerActions }: SharedLay
   }, [])
 
   const handleLogout = async () => {
+    if (loggingOut) return // Prevent multiple calls
+    
+    console.log('🚪 Logout initiated')
+    setLoggingOut(true)
     try {
       await authAPI.logout()
+      console.log('✅ Logout API call successful')
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error('❌ Logout API error:', error)
+      // Continue with logout even if API call fails
     } finally {
+      // Clear the app state and navigate to login
+      console.log('🗑️ Clearing app state')
       dispatch({ type: 'CLEAR_STATE' })
+      setLoggingOut(false)
+      console.log('🔄 Navigating to login')
       navigate('/login')
     }
   }
@@ -57,6 +68,7 @@ export function SharedLayout({ children, title, icon, headerActions }: SharedLay
           open={sidebarOpen}
           onToggle={handleSidebarToggle}
           onLogout={handleLogout}
+          loggingOut={loggingOut}
         />
 
         {/* Main content */}

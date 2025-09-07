@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useApp } from '@/context/AppContext'
-import { notesAPI, authAPI } from '@/lib/api'
+import { notesAPI } from '@/lib/api'
 import { NotesList } from '@/components/NotesList'
 import { NoteEditor } from '@/components/NoteEditor'
 import { TagFilter } from '@/components/TagFilter'
@@ -12,7 +12,6 @@ import {
   Search, 
   Plus, 
   Settings, 
-  LogOut, 
   Shield, 
   RefreshCw,
   AlertCircle
@@ -46,24 +45,14 @@ export function VaultPage() {
       dispatch({ type: 'SET_NOTES', payload: response.notes })
     } catch (error: any) {
       if (error.status === 401) {
-        // Token refresh will be handled automatically by the API layer
-        handleLogout()
+        // Token expired - let the app redirect to login
+        dispatch({ type: 'SET_USER', payload: null })
+        navigate('/login')
       } else {
         dispatch({ type: 'SET_ERROR', payload: error.message })
       }
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
-    }
-  }
-
-  const handleLogout = async () => {
-    try {
-      await authAPI.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      dispatch({ type: 'CLEAR_STATE' })
-      navigate('/login')
     }
   }
 
@@ -151,15 +140,6 @@ export function VaultPage() {
         className="hidden sm:flex"
       >
         <Settings className="h-4 w-4" />
-      </Button>
-
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleLogout}
-        className="hidden sm:flex"
-      >
-        <LogOut className="h-4 w-4" />
       </Button>
     </>
   )
