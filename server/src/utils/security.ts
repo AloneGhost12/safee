@@ -241,7 +241,7 @@ export class SecurityManager {
     if (!user) return false
 
     // Check all provided fields match
-    const checks = []
+    const checks: boolean[] = []
     
     if (verificationData.username) {
       checks.push(user.username.toLowerCase() === verificationData.username.toLowerCase())
