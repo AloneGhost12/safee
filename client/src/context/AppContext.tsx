@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react'
 import { setAuthToken } from '../lib/api'
 
 export interface Note {
@@ -129,13 +129,24 @@ const AppContext = createContext<{
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
+  const initializationRef = useRef(false)
 
   // Load user from localStorage on mount
   useEffect(() => {
+    // Prevent multiple initialization attempts
+    if (initializationRef.current) {
+      console.log('⏭️ Skipping duplicate initialization attempt')
+      return
+    }
+    
+    initializationRef.current = true
     console.log('🔄 AppProvider initializing...')
     
     const initializeAuth = async () => {
       try {
+        // Clear any stuck redirection flags
+        sessionStorage.removeItem('redirecting-to-login')
+        
         const savedUser = localStorage.getItem('user')
         if (savedUser) {
           console.log('👤 Found saved user in localStorage')
@@ -144,26 +155,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             console.log('👤 Parsed user:', { id: user.id, email: user.email })
             
             // Validate the user object has required fields
-            if (user.id && user.email) {
+            if (user.id && user.email && user.token) {
               dispatch({ type: 'SET_USER', payload: user })
               // Set the auth token for API requests
-              if (user.token) {
-                setAuthToken(user.token)
-                console.log('🔑 Auth token set')
-              }
+              setAuthToken(user.token)
+              console.log('🔑 Auth token set')
             } else {
               console.warn('⚠️ Invalid user object in localStorage, clearing...')
               localStorage.removeItem('user')
+              setAuthToken(null)
             }
           } catch (error) {
             console.error('❌ Failed to parse saved user:', error)
             localStorage.removeItem('user')
+            setAuthToken(null)
           }
         } else {
           console.log('🚫 No saved user found')
+          setAuthToken(null)
         }
       } catch (error) {
         console.error('❌ Error during auth initialization:', error)
+        setAuthToken(null)
       } finally {
         dispatch({ type: 'SET_INITIALIZED', payload: true })
         console.log('✅ AppProvider initialized')
@@ -175,16 +188,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Save user to localStorage when it changes (but only after initialization)
   useEffect(() => {
-    if (!state.isInitialized) {
-      return // Don't save during initialization
+    // Don't save during initialization or if we're in the middle of redirecting
+    if (!state.isInitialized || sessionStorage.getItem('redirecting-to-login')) {
+      return
     }
     
     if (state.user) {
-      console.log('💾 Saving user to localStorage')
-      localStorage.setItem('user', JSON.stringify(state.user))
-      // Update auth token when user changes
-      if (state.user.token) {
+      // Only save if user has all required fields
+      if (state.user.id && state.user.email && state.user.token) {
+        console.log('💾 Saving user to localStorage')
+        localStorage.setItem('user', JSON.stringify(state.user))
+        // Update auth token when user changes
         setAuthToken(state.user.token)
+      } else {
+        console.warn('⚠️ Attempting to save incomplete user object, skipping...')
       }
     } else {
       console.log('🗑️ Removing user from localStorage')

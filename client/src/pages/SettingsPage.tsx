@@ -86,7 +86,7 @@ export function SettingsPage() {
     if (!state.user || !twoFactorEnabled) return
     
     try {
-      const info = await authAPI.getBackupCodesInfo(state.user.email)
+      const info = await authAPI.getBackupCodesInfo()
       setBackupCodesInfo(info)
     } catch (error) {
       console.error('Failed to load backup codes info:', error)

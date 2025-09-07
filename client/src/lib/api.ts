@@ -55,6 +55,16 @@ async function refreshAuthToken(): Promise<string> {
     })
   }
 
+  // Prevent refresh loops by checking if we recently failed
+  const lastRefreshFailure = sessionStorage.getItem('last-refresh-failure')
+  if (lastRefreshFailure) {
+    const timeSinceFailure = Date.now() - parseInt(lastRefreshFailure)
+    if (timeSinceFailure < 30000) { // 30 seconds cooldown
+      console.log('⏳ Token refresh in cooldown period, skipping...')
+      throw new Error('Token refresh in cooldown period')
+    }
+  }
+
   isRefreshing = true
 
   try {
@@ -76,12 +86,17 @@ async function refreshAuthToken(): Promise<string> {
     const newToken = data.access
     
     console.log('✅ Token refresh successful')
+    // Clear any previous failure timestamp
+    sessionStorage.removeItem('last-refresh-failure')
     setAuthToken(newToken)
     processQueue(null, newToken)
     
     return newToken
   } catch (error) {
     console.error('❌ Token refresh error:', error)
+    // Record the failure timestamp
+    sessionStorage.setItem('last-refresh-failure', Date.now().toString())
+    
     const err = error instanceof Error ? error : new Error('Token refresh failed')
     processQueue(err)
     setAuthToken(null)
@@ -89,11 +104,21 @@ async function refreshAuthToken(): Promise<string> {
     // Clear stored user data on refresh failure
     localStorage.removeItem('user')
     
-    // Only redirect if we're not already on login/register pages
+    // Only redirect if we're not already on login/register pages and not in the middle of navigation
     const currentPath = window.location.pathname
-    if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/recovery') {
+    const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery'
+    
+    if (!isPublicPage) {
       console.log('🔄 Redirecting to login due to token refresh failure')
-      window.location.href = '/login'
+      // Use a flag to prevent multiple redirections
+      if (!sessionStorage.getItem('redirecting-to-login')) {
+        sessionStorage.setItem('redirecting-to-login', 'true')
+        // Use setTimeout to prevent immediate redirect during other operations
+        setTimeout(() => {
+          sessionStorage.removeItem('redirecting-to-login')
+          window.location.href = '/login'
+        }, 100)
+      }
     }
     throw err
   } finally {
@@ -230,10 +255,9 @@ export const authAPI = {
     }),
 
   // Backup codes
-  getBackupCodesInfo: (email: string) =>
+  getBackupCodesInfo: () =>
     request<{ unusedCodesCount: number; totalCodes: number; generated?: string }>('/auth/2fa/backup-codes', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
+      method: 'GET',
     }),
 
   regenerateBackupCodes: (email: string) =>

@@ -54,11 +54,11 @@ export function setupCSP() {
 
 /**
  * Rate limiting for authentication endpoints
- * Prevents brute force attacks
+ * Prevents brute force attacks while allowing normal user operations
  */
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs for auth endpoints
+  max: 100, // Increased from 5 to 100 requests per windowMs for auth endpoints
   message: {
     error: 'Too many authentication attempts, please try again later',
     retryAfter: 15 * 60 // seconds
@@ -83,12 +83,66 @@ export const authRateLimit = rateLimit({
 })
 
 /**
+ * Lenient rate limiting for general user operations
+ * For logout, profile info, non-sensitive operations
+ */
+export const generalUserRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // High limit for general operations
+  message: {
+    error: 'Too many requests, please try again later',
+    retryAfter: 15 * 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'] as string
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'unknown'
+    return ip
+  },
+  skip: (req) => {
+    if (process.env.NODE_ENV === 'development' && 
+        (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip?.startsWith('192.168.'))) {
+      return true
+    }
+    return false
+  }
+})
+
+/**
+ * Moderate rate limiting for 2FA operations
+ * Slightly more restrictive than general but not too aggressive
+ */
+export const twoFAOperationsRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 requests per 15 minutes for 2FA operations
+  message: {
+    error: 'Too many 2FA requests, please try again later',
+    retryAfter: 15 * 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'] as string
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'unknown'
+    return ip
+  },
+  skip: (req) => {
+    if (process.env.NODE_ENV === 'development' && 
+        (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip?.startsWith('192.168.'))) {
+      return true
+    }
+    return false
+  }
+})
+
+/**
  * Aggressive rate limiting for failed login attempts
  * Applies progressive delays after failed attempts
  */
 export const loginRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 attempts per hour
+  max: 10, // Increased from 3 to 10 attempts per hour
   message: {
     error: 'Too many failed login attempts, account temporarily locked',
     retryAfter: 60 * 60

@@ -507,11 +507,11 @@ export default function TestingPage() {
           <CardDescription>Common testing operations</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <Button 
               variant="outline" 
               className="flex flex-col gap-2 h-20"
-              onClick={() => window.open('https://github.com/your-repo/actions', '_blank')}
+              onClick={() => window.open('https://github.com/AloneGhost12/safee/actions', '_blank')}
             >
               <Globe className="h-5 w-5" />
               <span className="text-sm">CI/CD Status</span>
@@ -520,16 +520,125 @@ export default function TestingPage() {
             <Button 
               variant="outline" 
               className="flex flex-col gap-2 h-20"
-              onClick={() => window.open('/coverage', '_blank')}
+              onClick={() => {
+                // Run quick essential tests
+                const essentialTests = testSuites.filter(suite => 
+                  suite.category === 'unit' || 
+                  suite.category === 'security' ||
+                  suite.id === 'crypto-unit'
+                );
+                
+                essentialTests.forEach(suite => {
+                  simulateTestExecution(suite);
+                });
+              }}
             >
-              <Download className="h-5 w-5" />
-              <span className="text-sm">Coverage Report</span>
+              <Play className="h-5 w-5" />
+              <span className="text-sm">Quick Test</span>
             </Button>
             
             <Button 
               variant="outline" 
               className="flex flex-col gap-2 h-20"
-              onClick={() => window.open('/docs/testing', '_blank')}
+              onClick={() => {
+                // Generate and download test coverage report
+                const coverageData = {
+                  timestamp: new Date().toISOString(),
+                  results: testResults,
+                  summary: {
+                    total: testSuites.length,
+                    passed: Object.values(testResults).filter(r => r?.status === 'passed').length,
+                    failed: Object.values(testResults).filter(r => r?.status === 'failed').length,
+                    coverage: `${Math.round(overallProgress)}%`
+                  }
+                };
+                
+                const blob = new Blob([JSON.stringify(coverageData, null, 2)], { 
+                  type: 'application/json' 
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `test-coverage-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="h-5 w-5" />
+              <span className="text-sm">Download Report</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="flex flex-col gap-2 h-20"
+              onClick={() => {
+                // Open testing documentation in a new window
+                const docContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing Documentation - Personal Vault</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .section { margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <h1>Personal Vault - Testing Documentation</h1>
+    
+    <div class="section">
+        <h2>Test Categories</h2>
+        <ul>
+            <li><strong>Authentication Tests</strong> - Login, registration, 2FA verification</li>
+            <li><strong>File Operations</strong> - Upload, download, encryption, decryption</li>
+            <li><strong>Note Management</strong> - Create, edit, delete, search notes</li>
+            <li><strong>Security Tests</strong> - Rate limiting, CORS, input validation</li>
+            <li><strong>API Integration</strong> - All API endpoints and error handling</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Quick Actions Guide</h2>
+        <ul>
+            <li><strong>Run All Tests</strong> - Executes all test categories</li>
+            <li><strong>Quick Test</strong> - Runs essential auth and API tests</li>
+            <li><strong>CI/CD Status</strong> - Opens GitHub Actions page</li>
+            <li><strong>Download Report</strong> - Saves test results as JSON</li>
+            <li><strong>Clear Results</strong> - Resets all test data</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Test Commands</h2>
+        <pre>
+# Run client tests
+npm run test
+
+# Run server tests  
+npm run test:server
+
+# Run with coverage
+npm run test:coverage
+
+# Run CI tests
+npm run test:ci
+        </pre>
+    </div>
+</body>
+</html>`;
+                
+                const blob = new Blob([docContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                
+                // Clean up the URL after a delay
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
             >
               <FileText className="h-5 w-5" />
               <span className="text-sm">Documentation</span>

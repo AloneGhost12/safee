@@ -12,6 +12,8 @@ import { getEmailService, generateRecoveryCode } from '../services/emailService'
 import { SecurityManager } from '../utils/security'
 import { 
   authRateLimit, 
+  generalUserRateLimit,
+  twoFAOperationsRateLimit,
   loginRateLimit, 
   authSlowDown, 
   validateInput, 
@@ -76,9 +78,9 @@ const verifySecurityQuestionsSchema = z.object({
   answers: z.array(z.string().min(1, 'Answer required')).length(3, 'All 3 answers required')
 })
 
-// Apply rate limiting and validation to all auth routes
-router.use(authRateLimit)
-router.use(authSlowDown)
+// Removed global rate limiter - now applied per route as needed
+// router.use(authRateLimit)
+// router.use(authSlowDown)
 
 /**
  * Secure cookie configuration
@@ -535,7 +537,7 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   res.json({ access })
 }))
 
-router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', generalUserRateLimit, asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.[process.env.SESSION_COOKIE_NAME || 'pv_sess']
   const auditLogger = AuditLogger.getInstance()
   const clientInfo = getClientInfo(req)
@@ -845,7 +847,7 @@ router.post('/2fa/disable', requireAuth, asyncHandler(async (req: AuthedRequest,
 }))
 
 // Backup codes management
-router.post('/2fa/backup-codes/regenerate', requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+router.post('/2fa/backup-codes/regenerate', twoFAOperationsRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
   const userId = req.userId
   const auditLogger = AuditLogger.getInstance()
   const clientInfo = getClientInfo(req)
@@ -889,7 +891,33 @@ router.post('/2fa/backup-codes/regenerate', requireAuth, asyncHandler(async (req
   res.json({ backupCodes })
 }))
 
-router.post('/2fa/backup-codes', requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+// GET route for backup codes info (just counts, not actual codes)
+router.get('/2fa/backup-codes', twoFAOperationsRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  
+  const col = usersCollection()
+  const user = await col.findOne({ _id: new ObjectId(userId) })
+  
+  if (!user || !user.twoFactorEnabled) {
+    return res.status(400).json({ error: '2FA not enabled' })
+  }
+  
+  // Return backup codes info without revealing actual codes
+  const unusedCount = user.backupCodes?.filter(code => !code.used).length || 0
+  const totalCount = user.backupCodes?.length || 0
+  
+  res.json({ 
+    unusedCodesCount: unusedCount,
+    totalCodes: totalCount,
+    generated: user.backupCodesGenerated
+  })
+}))
+
+router.post('/2fa/backup-codes', twoFAOperationsRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
   const userId = req.userId
   
   if (!userId) {
@@ -1256,7 +1284,7 @@ router.post('/recovery/setup-questions', requireAuth, validateInput(z.object({
 }))
 
 // Get security questions for recovery
-router.post('/recovery/get-questions', requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+router.post('/recovery/get-questions', generalUserRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
   const userId = req.userId
   
   if (!userId) {
