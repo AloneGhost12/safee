@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/safee/', // GitHub Pages base path
   server: { 
     port: 5179,
     proxy: {
