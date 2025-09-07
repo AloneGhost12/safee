@@ -81,8 +81,8 @@ async function start() {
     // Validate required environment variables
     const requiredEnvVars = [
       'MONGO_URI',
-      'ACCESS_TOKEN_SECRET',
-      'REFRESH_TOKEN_SECRET',
+      'JWT_ACCESS_SECRET',
+      'JWT_REFRESH_SECRET',
       'ALLOWED_ORIGINS'
     ]
     
