@@ -56,6 +56,12 @@ const globalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use x-forwarded-for header for Render, fallback to req.ip
+    const forwarded = req.headers['x-forwarded-for'] as string
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'unknown'
+    return ip
+  },
   skip: (req) => {
     // Skip rate limiting for health checks
     return req.path === '/api/health'
