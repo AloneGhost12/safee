@@ -15,12 +15,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: MONGO_URI
-        fromDatabase:
-          name: vault-mongodb
-          property: connectionString
-      # Fallback MongoDB URI - you can set this manually in Render dashboard if needed
-      # - key: MONGO_URI
-      #   value: mongodb+srv://username:password@cluster.mongodb.net/vault
+        value: mongodb+srv://adharshnp92:OjMNYzmnZnR4sVnl@cluster0.vrx397v.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -28,18 +23,18 @@ services:
       - key: SESSION_COOKIE_NAME
         value: pv_sess
       - key: ALLOWED_ORIGINS
-        value: https://AloneGhost12.github.io,https://aloneghost12.netlify.app,https://your-app.vercel.app
+        value: https://aloneghost12.github.io,https://aloneghost12.netlify.app
       - key: TRUST_PROXY
         value: true
       - key: TRUSTED_PROXIES
         value: 127.0.0.1,::1,172.68.0.0/12,172.69.0.0/12,104.16.0.0/12
-      # Cloudinary (optional)
+      # Cloudinary configuration
       - key: CLOUDINARY_CLOUD_NAME
-        sync: false
+        value: dtzhskby3
       - key: CLOUDINARY_API_KEY
-        sync: false
+        value: 279872768346294
       - key: CLOUDINARY_API_SECRET
-        sync: false
+        value: R2ioEHtBBs-6Kwmj-pbCL5Er3CQ
       # S3/R2 (optional)
       - key: S3_ENDPOINT
         sync: false
@@ -53,10 +48,10 @@ services:
         sync: false
     healthCheckPath: /api/health
 
-databases:
-  # MongoDB Database - must be created first
-  - name: vault-mongodb
-    databaseName: vault
-    user: vault_user
-    plan: starter
-    ipAllowList: []
+# Note: Render doesn't support MongoDB as a managed database
+# Use MongoDB Atlas for the database service
+# databases:
+#   - name: vault-mongodb
+#     databaseName: vault
+#     user: vault_user
+#     plan: starter
