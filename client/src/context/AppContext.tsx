@@ -28,6 +28,7 @@ interface AppState {
   selectedTags: string[]
   searchQuery: string
   currentNote: Note | null
+  isInitialized: boolean
 }
 
 type AppAction =
@@ -45,6 +46,7 @@ type AppAction =
   | { type: 'SET_SELECTED_TAGS'; payload: string[] }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_CURRENT_NOTE'; payload: Note | null }
+  | { type: 'SET_INITIALIZED'; payload: boolean }
   | { type: 'CLEAR_STATE' }
 
 const initialState: AppState = {
@@ -56,6 +58,7 @@ const initialState: AppState = {
   selectedTags: [],
   searchQuery: '',
   currentNote: null,
+  isInitialized: false,
 }
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -110,6 +113,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, searchQuery: action.payload }
     case 'SET_CURRENT_NOTE':
       return { ...state, currentNote: action.payload }
+    case 'SET_INITIALIZED':
+      return { ...state, isInitialized: action.payload }
     case 'CLEAR_STATE':
       return initialState
     default:
@@ -127,35 +132,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Load user from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user')
-    if (savedUser) {
+    console.log('🔄 AppProvider initializing...')
+    
+    const initializeAuth = async () => {
       try {
-        const user = JSON.parse(savedUser)
-        dispatch({ type: 'SET_USER', payload: user })
-        // Set the auth token for API requests
-        if (user.token) {
-          setAuthToken(user.token)
+        const savedUser = localStorage.getItem('user')
+        if (savedUser) {
+          console.log('👤 Found saved user in localStorage')
+          try {
+            const user = JSON.parse(savedUser)
+            console.log('👤 Parsed user:', { id: user.id, email: user.email })
+            
+            // Validate the user object has required fields
+            if (user.id && user.email) {
+              dispatch({ type: 'SET_USER', payload: user })
+              // Set the auth token for API requests
+              if (user.token) {
+                setAuthToken(user.token)
+                console.log('🔑 Auth token set')
+              }
+            } else {
+              console.warn('⚠️ Invalid user object in localStorage, clearing...')
+              localStorage.removeItem('user')
+            }
+          } catch (error) {
+            console.error('❌ Failed to parse saved user:', error)
+            localStorage.removeItem('user')
+          }
+        } else {
+          console.log('🚫 No saved user found')
         }
       } catch (error) {
-        console.error('Failed to parse saved user:', error)
-        localStorage.removeItem('user')
+        console.error('❌ Error during auth initialization:', error)
+      } finally {
+        dispatch({ type: 'SET_INITIALIZED', payload: true })
+        console.log('✅ AppProvider initialized')
       }
     }
-  }, [])
 
-  // Save user to localStorage when it changes
+    initializeAuth()
+  }, []) // Empty dependency array - only run once on mount
+
+  // Save user to localStorage when it changes (but only after initialization)
   useEffect(() => {
+    if (!state.isInitialized) {
+      return // Don't save during initialization
+    }
+    
     if (state.user) {
+      console.log('💾 Saving user to localStorage')
       localStorage.setItem('user', JSON.stringify(state.user))
       // Update auth token when user changes
       if (state.user.token) {
         setAuthToken(state.user.token)
       }
     } else {
+      console.log('🗑️ Removing user from localStorage')
       localStorage.removeItem('user')
       setAuthToken(null)
     }
-  }, [state.user])
+  }, [state.user, state.isInitialized])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

@@ -58,6 +58,7 @@ async function refreshAuthToken(): Promise<string> {
   isRefreshing = true
 
   try {
+    console.log('🔄 Attempting token refresh...')
     const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
@@ -67,24 +68,31 @@ async function refreshAuthToken(): Promise<string> {
     })
 
     if (!response.ok) {
+      console.log('❌ Token refresh failed with status:', response.status)
       throw new Error('Token refresh failed')
     }
 
     const data = await response.json()
     const newToken = data.access
     
+    console.log('✅ Token refresh successful')
     setAuthToken(newToken)
     processQueue(null, newToken)
     
     return newToken
   } catch (error) {
+    console.error('❌ Token refresh error:', error)
     const err = error instanceof Error ? error : new Error('Token refresh failed')
     processQueue(err)
     setAuthToken(null)
+    
     // Clear stored user data on refresh failure
     localStorage.removeItem('user')
-    // Redirect to login
-    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    
+    // Only redirect if we're not already on login/register pages
+    const currentPath = window.location.pathname
+    if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/recovery') {
+      console.log('🔄 Redirecting to login due to token refresh failure')
       window.location.href = '/login'
     }
     throw err

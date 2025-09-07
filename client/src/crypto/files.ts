@@ -125,9 +125,12 @@ export async function decryptFileName(encryptedName: string, key: CryptoKey): Pr
   const cleanedName = encryptedName.trim()
   
   // If the string doesn't look like encrypted data, return it as-is
-  // This handles legacy unencrypted data
+  // This handles legacy unencrypted data and standard MIME types
   if (cleanedName.length < 16 || !cleanedName.match(/^[A-Za-z0-9+/]+=*$/)) {
-    console.warn('File name does not appear to be encrypted, returning as-is:', cleanedName)
+    // Only show warning for actual file names, not standard MIME types
+    if (!cleanedName.includes('/') && !cleanedName.startsWith('application/') && !cleanedName.startsWith('text/') && !cleanedName.startsWith('image/')) {
+      console.warn('File name does not appear to be encrypted, returning as-is:', cleanedName)
+    }
     return cleanedName
   }
   
@@ -278,7 +281,13 @@ export async function decryptFile(
   
   // Decrypt filename and MIME type
   const fileName = await decryptFileName(metadata.encryptedName, key)
-  const mimeType = await decryptFileName(metadata.encryptedMimeType, key)
+  let mimeType = await decryptFileName(metadata.encryptedMimeType, key)
+  
+  // If MIME type is generic octet-stream, try to detect from file content
+  if (mimeType === 'application/octet-stream' && metadata.originalSize > 0) {
+    // For now, we'll keep the original logic and let the preview component handle detection
+    // Future enhancement: Add file signature detection here
+  }
   
   const decryptedChunks: Uint8Array[] = []
   let totalProcessed = 0

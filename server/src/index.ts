@@ -15,6 +15,7 @@ import { httpLogger } from './middleware/logger'
 import { errorHandler, notFoundHandler } from './middleware/errors'
 import { validateCloudinaryConfig } from './utils/cloudinary'
 import { setupSecureCORS, validateCORSConfig } from './middleware/cors'
+import { emergencyCORSFix } from './middleware/emergencyCORS'
 import { 
   setupCSP, 
   helmetConfig, 
@@ -37,6 +38,7 @@ if (!validateCORSConfig()) {
   process.exit(1)
 }
 app.use(setupSecureCORS())
+app.use(emergencyCORSFix()) // Temporary fix for additional origins
 
 // Request parsing
 app.use(express.json({ limit: '10mb' }))
