@@ -28,9 +28,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: client/package.json
 
+      - name: Clear npm cache
+        working-directory: ./client
+        run: npm cache clean --force
+
       - name: Install dependencies
         working-directory: ./client
-        run: npm install
+        run: npm ci
 
       - name: Build
         working-directory: ./client
