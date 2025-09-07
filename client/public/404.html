@@ -6,23 +6,36 @@
     <title>Personal Vault</title>
     <link rel="icon" type="image/x-icon" href="/safee/favicon.ico" />
     
-    <!-- Simple SPA Redirect for GitHub Pages -->
+    <!-- Enhanced SPA Redirect for GitHub Pages and subdirectory deployments -->
     <script>
       // Enhanced redirect for GitHub Pages SPA with base path support
       var l = window.location;
       var basePath = '/safee/'; // This should match your deployment base path
       var base = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath;
       
-      // Store the intended path in sessionStorage so the app can pick it up
-      sessionStorage.setItem('redirectPath', l.pathname + l.search + l.hash);
-      
-      console.log('🔄 404 Redirect:', {
+      console.log('🔄 404 Redirect Debug:', {
         requestedPath: l.pathname,
+        hostname: l.hostname,
         basePath: basePath,
-        redirectTo: base
+        redirectTo: base,
+        isSubdirectory: l.pathname.startsWith('/safee/'),
+        currentURL: l.href
       });
       
-      // Redirect to base URL
+      // Check if we're already in the correct base path
+      if (l.pathname.startsWith(basePath) && l.pathname !== basePath) {
+        // Store the intended path in sessionStorage so the app can pick it up
+        var relativePath = l.pathname.substring(basePath.length - 1); // Keep the leading slash
+        sessionStorage.setItem('redirectPath', relativePath + l.search + l.hash);
+        console.log('🔄 Storing relative path for SPA routing:', relativePath);
+      } else if (l.pathname === '/' || !l.pathname.startsWith(basePath)) {
+        // If at root or outside base path, just redirect to base
+        sessionStorage.setItem('redirectPath', '/vault'); // Default to vault page
+        console.log('🔄 Root access, redirecting to default page');
+      }
+      
+      // Always redirect to the base URL and let the SPA handle routing
+      console.log('🔄 Redirecting to:', base);
       l.replace(base);
     </script>
   </head>
