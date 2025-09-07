@@ -58,7 +58,7 @@ export function setupCSP() {
  */
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Increased from 5 to 100 requests per windowMs for auth endpoints
+  max: 500, // Increased to 500 requests per 15 minutes for normal operations
   message: {
     error: 'Too many authentication attempts, please try again later',
     retryAfter: 15 * 60 // seconds
@@ -142,7 +142,7 @@ export const twoFAOperationsRateLimit = rateLimit({
  */
 export const loginRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Increased from 3 to 10 attempts per hour
+  max: 50, // Increased to 50 attempts per hour for more reasonable limits
   message: {
     error: 'Too many failed login attempts, account temporarily locked',
     retryAfter: 60 * 60
@@ -156,6 +156,13 @@ export const loginRateLimit = rateLimit({
     return ip
   },
   skipSuccessfulRequests: true, // Don't count successful requests
+  // Skip rate limiting in development
+  skip: (req) => {
+    if (process.env.NODE_ENV === 'development') {
+      return true
+    }
+    return false
+  }
 })
 
 /**
@@ -164,10 +171,17 @@ export const loginRateLimit = rateLimit({
  */
 export const authSlowDown = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  delayAfter: 2, // Allow 2 requests per window without delay
-  delayMs: () => 500, // Add 500ms delay per request after delayAfter
-  maxDelayMs: 20000, // Maximum delay of 20 seconds
+  delayAfter: 10, // Allow 10 requests per window without delay (increased from 2)
+  delayMs: () => 200, // Reduced delay to 200ms per request after delayAfter
+  maxDelayMs: 5000, // Reduced maximum delay to 5 seconds
   validate: { delayMs: false }, // Disable the warning
+  // Skip in development
+  skip: (req) => {
+    if (process.env.NODE_ENV === 'development') {
+      return true
+    }
+    return false
+  }
 })
 
 /**
