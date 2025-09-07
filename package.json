@@ -12,7 +12,6 @@
     "dev:server": "npm --workspace server run dev",
     "build": "npm --workspace server run build",
     "build:full": "npm --workspace client run build && npm --workspace server run build",
-    "start": "npm --workspace server run start",
-    "postinstall": "npm --workspace server install"
+    "start": "npm --workspace server run start"
   }
 }

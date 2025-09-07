@@ -23,7 +23,6 @@
     "test:coverage": "vitest run --coverage",
     "test:all": "npm run test:unit && npm run test:integration",
     "prestart": "npm run build",
-    "postinstall": "npm run build",
     "security:validate": "node ../scripts/validate-security.js",
     "security:audit": "npm audit --audit-level moderate",
     "security:check": "npm run security:validate && npm run security:audit",
