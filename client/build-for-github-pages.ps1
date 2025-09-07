@@ -3,7 +3,7 @@ Write-Host "Building Personal Vault for GitHub Pages (tridex.app)..." -Foregroun
 
 # Set the environment for production
 $env:NODE_ENV = "production"
-$env:VITE_BASE_PATH = "/safee/"
+$env:VITE_BASE_PATH = "/"
 $env:VITE_API_URL = "https://safee-y8iw.onrender.com"
 $env:VITE_APP_NAME = "Personal Vault"
 
