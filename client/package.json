@@ -6,6 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:production": "npm ci && vite build",
+    "build:domain": "VITE_BASE_PATH=/safee/ vite build",
+    "build:domain:win": "set VITE_BASE_PATH=/safee/ && vite build",
     "preview": "vite preview",
     "start": "npm run preview",
     "docker:build": "docker build -t vault-client .",

@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/safee/' : '/', // GitHub Pages base path only in production
+  base: process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/safee/' : '/'), // Use env var or default base path
   server: { 
     port: 5179,
     proxy: {
