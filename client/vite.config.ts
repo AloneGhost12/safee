@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VITE_BASE_PATH || '/', // Use /safee/ for tridex.app deployment
+  base: process.env.VITE_BASE_PATH || '/',
   server: { 
     port: 5179,
     proxy: {
@@ -22,5 +22,6 @@ export default defineConfig({
   },
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4000'),
+    'import.meta.env.VITE_BASE_PATH': JSON.stringify(process.env.VITE_BASE_PATH || '/'),
   },
 })

@@ -10,6 +10,18 @@ import { AccountRecoveryPage } from './pages/AccountRecoveryPage'
 import TestingPage from './pages/TestingPage'
 import './styles/tailwind.css'
 
+// Get base path from environment, default to '/'
+const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/'
+
+// Helper function to get proper base name for React Router
+function getBasename() {
+  // If BASE_PATH is '/', return undefined (default behavior)
+  if (BASE_PATH === '/') return undefined
+  
+  // Remove trailing slash for React Router basename
+  return BASE_PATH.replace(/\/$/, '')
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { state } = useApp()
   
@@ -134,7 +146,7 @@ function AppRoutes() {
 
 function App() {
   return (
-    <Router>
+    <Router basename={getBasename()}>
       <AppProvider>
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           <AppRoutes />

@@ -8,6 +8,8 @@
     "build:production": "npm ci && vite build",
     "build:domain": "VITE_BASE_PATH=/safee/ vite build",
     "build:domain:win": "set VITE_BASE_PATH=/safee/ && vite build",
+    "build:tridex": "powershell -ExecutionPolicy Bypass -File build-for-tridex.ps1",
+    "build:tridex:bash": "bash build-for-tridex.sh",
     "build:root": "VITE_BASE_PATH=/ vite build",
     "build:root:win": "set VITE_BASE_PATH=/ && vite build",
     "build:github": "VITE_BASE_PATH=/safee/ vite build",

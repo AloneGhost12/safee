@@ -8,13 +8,19 @@
     
     <!-- Simple SPA Redirect for GitHub Pages -->
     <script>
-      // Simple redirect for GitHub Pages SPA
-      // Just redirect all 404s to the base app and let React Router handle it
+      // Enhanced redirect for GitHub Pages SPA with base path support
       var l = window.location;
-      var base = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/safee/';
+      var basePath = '/safee/'; // This should match your deployment base path
+      var base = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + basePath;
       
       // Store the intended path in sessionStorage so the app can pick it up
       sessionStorage.setItem('redirectPath', l.pathname + l.search + l.hash);
+      
+      console.log('🔄 404 Redirect:', {
+        requestedPath: l.pathname,
+        basePath: basePath,
+        redirectTo: base
+      });
       
       // Redirect to base URL
       l.replace(base);

@@ -8,20 +8,44 @@
     
     <!-- GitHub Pages SPA Redirect Handler -->
     <script>
-      // Simple redirect handler for GitHub Pages SPA
-      // Check if we have a stored redirect path and navigate to it
+      // Enhanced redirect handler for GitHub Pages SPA with base path support
       (function() {
+        var basePath = '%VITE_BASE_PATH%' || '/';
         var redirectPath = sessionStorage.getItem('redirectPath');
+        
+        // Clean up base path (remove trailing slash for comparison)
+        var cleanBasePath = basePath.replace(/\/$/, '');
+        
+        console.log('🔧 Base Path Handler:', {
+          basePath: basePath,
+          cleanBasePath: cleanBasePath,
+          currentPath: window.location.pathname,
+          redirectPath: redirectPath
+        });
+        
         if (redirectPath) {
           sessionStorage.removeItem('redirectPath');
           
-          // Clean up the path (remove /safee/ prefix if present)
-          redirectPath = redirectPath.replace(/^\/safee/, '');
+          // Clean up the path (remove base path prefix if present)
+          redirectPath = redirectPath.replace(new RegExp('^' + cleanBasePath), '');
+          
+          console.log('🔄 Processing redirect:', {
+            originalPath: sessionStorage.getItem('redirectPath'),
+            cleanedPath: redirectPath
+          });
           
           // Use history API to navigate to the intended route
           if (redirectPath && redirectPath !== '/') {
-            window.history.replaceState(null, null, redirectPath);
+            window.history.replaceState(null, null, cleanBasePath + redirectPath);
           }
+        }
+        
+        // Handle base path mismatch
+        if (cleanBasePath !== '' && !window.location.pathname.startsWith(cleanBasePath)) {
+          console.log('🔄 Correcting base path mismatch');
+          var currentPath = window.location.pathname;
+          // Redirect to correct base path
+          window.location.replace(window.location.origin + cleanBasePath + currentPath);
         }
       })();
     </script>
