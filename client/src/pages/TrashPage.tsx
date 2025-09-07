@@ -27,7 +27,7 @@ interface DeletedFile {
 }
 
 export function TrashPage() {
-  const { state, dispatch } = useApp()
+  const { dispatch } = useApp()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [deletedNotes, setDeletedNotes] = useState<Note[]>([])
@@ -69,8 +69,6 @@ export function TrashPage() {
       setLoading(false)
     }
   }
-
-  const totalDeletedItems = deletedNotes.length + deletedFiles.length
 
   const handleRestore = async (itemId: string, type: 'note' | 'file') => {
     setLoading(true)

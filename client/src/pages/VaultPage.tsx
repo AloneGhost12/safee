@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useApp } from '@/context/AppContext'
 import { notesAPI, authAPI } from '@/lib/api'
-import { useCrypto } from '@/hooks/useCrypto'
 import { NotesList } from '@/components/NotesList'
 import { NoteEditor } from '@/components/NoteEditor'
 import { TagFilter } from '@/components/TagFilter'
@@ -21,10 +20,8 @@ import {
 
 export function VaultPage() {
   const { state, dispatch } = useApp()
-  const { decryptNote } = useCrypto()
   const navigate = useNavigate()
   
-  const [masterKey, setMasterKey] = useState<CryptoKey | null>(null)
   const [showNoteEditor, setShowNoteEditor] = useState(false)
 
   useEffect(() => {
