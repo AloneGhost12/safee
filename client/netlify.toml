@@ -7,14 +7,14 @@
   
   # Environment variables
   [build.environment]
-    VITE_API_URL = "https://safe-vault-qn1g.onrender.com"
+    VITE_API_URL = "https://safee-y8iw.onrender.com"
     VITE_APP_NAME = "Personal Vault"
     NODE_VERSION = "18"
 
 # Redirect rules for SPA
 [[redirects]]
   from = "/api/*"
-  to = "https://safe-vault-qn1g.onrender.com/api/:splat"
+  to = "https://safee-y8iw.onrender.com/api/:splat"
   status = 200
   force = true
 
