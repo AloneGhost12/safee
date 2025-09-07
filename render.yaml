@@ -18,6 +18,9 @@ services:
         fromDatabase:
           name: vault-mongodb
           property: connectionString
+      # Fallback MongoDB URI - you can set this manually in Render dashboard if needed
+      # - key: MONGO_URI
+      #   value: mongodb+srv://username:password@cluster.mongodb.net/vault
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -51,7 +54,9 @@ services:
     healthCheckPath: /api/health
 
 databases:
-  # MongoDB Database
+  # MongoDB Database - must be created first
   - name: vault-mongodb
     databaseName: vault
     user: vault_user
+    plan: starter
+    ipAllowList: []
