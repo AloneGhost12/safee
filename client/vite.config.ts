@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/safee/' : '/'), // Use env var or default base path
+  base: process.env.VITE_BASE_PATH || '/', // Default to root path for most deployments
   server: { 
     port: 5179,
     proxy: {
