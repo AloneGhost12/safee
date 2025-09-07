@@ -70,6 +70,38 @@ app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)
 app.use('/api/test', testRoutes)
 
+// Root endpoint - API documentation
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Personal Vault API',
+    version: '0.1.0',
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: 'GET /api/health',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        logout: 'POST /api/auth/logout',
+        refresh: 'POST /api/auth/refresh'
+      },
+      notes: {
+        list: 'GET /api/notes',
+        create: 'POST /api/notes',
+        get: 'GET /api/notes/:id',
+        update: 'PUT /api/notes/:id',
+        delete: 'DELETE /api/notes/:id'
+      },
+      files: {
+        upload: 'POST /api/files/upload',
+        get: 'GET /api/files/:id',
+        delete: 'DELETE /api/files/:id'
+      }
+    },
+    documentation: 'Visit /api/health for service status'
+  })
+})
+
 // 404 handler for undefined routes
 app.use(notFoundHandler)
 
