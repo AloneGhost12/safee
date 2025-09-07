@@ -10,16 +10,18 @@ npm install
 echo "🧹 Cleaning previous build..."
 rm -rf dist
 
-# Build with TypeScript, but with more lenient settings
+# Build with TypeScript
 echo "🏗️  Building TypeScript..."
-npx tsc --skipLibCheck --noEmit false --declaration false
+npx tsc --skipLibCheck true --noEmit false --declaration false
 
 # Check if build succeeded
 if [ $? -eq 0 ]; then
     echo "✅ Build completed successfully!"
+    echo "📂 Listing build output:"
+    ls -la dist/
 else
-    echo "❌ TypeScript build failed, trying with more permissive settings..."
-    npx tsc --skipLibCheck --noEmit false --declaration false --noImplicitAny false --strict false
+    echo "❌ TypeScript build failed"
+    exit 1
 fi
 
 echo "🎉 Build process complete!"

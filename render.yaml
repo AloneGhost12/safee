@@ -4,7 +4,8 @@ services:
     name: vault-api
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build:render
+    rootDir: server
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV

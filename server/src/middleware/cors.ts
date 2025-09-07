@@ -29,7 +29,7 @@ export function setupSecureCORS() {
   console.log('Allowed CORS origins:', validOrigins)
 
   return cors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin && process.env.ALLOW_NO_ORIGIN === 'true') {
         return callback(null, true)
