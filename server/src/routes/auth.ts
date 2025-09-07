@@ -1283,8 +1283,28 @@ router.post('/recovery/setup-questions', requireAuth, validateInput(z.object({
   res.json({ success: true, message: 'Security questions saved successfully.' })
 }))
 
-// Get security questions for recovery
-router.post('/recovery/get-questions', generalUserRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+// Get security questions for recovery (without authentication for account recovery)
+router.post('/recovery/get-questions', generalUserRateLimit, validateInput(z.object({
+  email: validationSchemas.email
+})), asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body
+  
+  const col = usersCollection()
+  const user = await col.findOne({ email })
+  
+  if (!user || !user.securityQuestions || user.securityQuestions.length === 0) {
+    // Don't reveal if user exists or has questions set up
+    return res.json({ questions: [] })
+  }
+
+  // Return only the questions, not the answers
+  const questions = user.securityQuestions.map(sq => sq.question)
+  
+  res.json({ questions })
+}))
+
+// Get security questions for authenticated user (Settings page)
+router.get('/security-questions', generalUserRateLimit, requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
   const userId = req.userId
   
   if (!userId) {
@@ -1295,7 +1315,6 @@ router.post('/recovery/get-questions', generalUserRateLimit, requireAuth, asyncH
   const user = await col.findOne({ _id: new ObjectId(userId) })
   
   if (!user || !user.securityQuestions || user.securityQuestions.length === 0) {
-    // Don't reveal if user exists or has questions set up
     return res.json({ questions: [] })
   }
 

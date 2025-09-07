@@ -306,16 +306,22 @@ export const authAPI = {
       body: JSON.stringify({ email, code }),
     }),
 
-  setupSecurityQuestions: (email: string, questions: Array<{ question: string; answer: string }>) =>
+  setupSecurityQuestions: (questions: Array<{ question: string; answer: string }>) =>
     request<{ success: boolean; message: string }>('/auth/recovery/setup-questions', {
       method: 'POST',
-      body: JSON.stringify({ email, questions }),
+      body: JSON.stringify({ questions }),
     }),
 
   getSecurityQuestions: (email: string) =>
     request<{ questions: string[] }>('/auth/recovery/get-questions', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    }),
+
+  // Get security questions for authenticated user (Settings page)
+  getMySecurityQuestions: () =>
+    request<{ questions: string[] }>('/auth/security-questions', {
+      method: 'GET',
     }),
 
   verifySecurityQuestions: (email: string, answers: string[]) =>

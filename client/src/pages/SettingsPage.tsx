@@ -267,7 +267,7 @@ export function SettingsPage() {
     setError('')
 
     try {
-      await authAPI.setupSecurityQuestions(state.user.email, validQuestions)
+      await authAPI.setupSecurityQuestions(validQuestions)
       setHasSecurityQuestions(true)
       setSuccess('Security questions saved successfully!')
       
@@ -317,7 +317,7 @@ Store these codes in a secure location and do not share them with anyone.`
       if (!state.user) return
       
       try {
-        const response = await authAPI.getSecurityQuestions(state.user.email)
+        const response = await authAPI.getMySecurityQuestions()
         setHasSecurityQuestions(response.questions.length > 0)
       } catch (error) {
         console.error('Failed to check security questions:', error)
