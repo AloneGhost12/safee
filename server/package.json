@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc --skipLibCheck true --noEmit false",
+    "prebuild": "npm install",
+    "build": "tsc --skipLibCheck true --noEmit false --noImplicitAny false",
     "build:render": "chmod +x build.sh && ./build.sh",
     "build:clean": "rm -rf dist && npm run build",
     "build:production": "npm ci --omit=dev && npm run build:clean",
