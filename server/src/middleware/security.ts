@@ -65,6 +65,7 @@ export const authRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use manual key generation to avoid trust proxy issues
   keyGenerator: (req) => {
     // Use x-forwarded-for header for Render, fallback to req.ip
     const forwarded = req.headers['x-forwarded-for'] as string
@@ -226,10 +227,14 @@ export function getClientIP(req: Request): string {
  * Trusted proxy configuration for rate limiting
  */
 export function configureTrustedProxies(app: any) {
-  // Trust proxy if behind reverse proxy (Nginx, Cloudflare, etc.)
-  if (process.env.TRUST_PROXY === 'true') {
-    app.set('trust proxy', true)
+  // For Render deployment, trust specific Cloudflare IPs instead of all proxies
+  if (process.env.NODE_ENV === 'production' && process.env.TRUST_PROXY === 'true') {
+    // Trust Cloudflare IP ranges used by Render
+    app.set('trust proxy', ['127.0.0.1', '::1', '172.68.0.0/12', '172.69.0.0/12', '104.16.0.0/12'])
   } else if (process.env.TRUSTED_PROXIES) {
     app.set('trust proxy', process.env.TRUSTED_PROXIES.split(','))
+  } else if (process.env.NODE_ENV === 'development') {
+    // Only trust localhost in development
+    app.set('trust proxy', ['127.0.0.1', '::1'])
   }
 }
