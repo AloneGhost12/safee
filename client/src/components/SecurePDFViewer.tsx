@@ -11,6 +11,7 @@ export function SecurePDFViewer({ pdfData, onDownload }: SecurePDFViewerProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [forceLoad, setForceLoad] = useState(false)
 
   useEffect(() => {
     setupPDFBlob()
@@ -20,7 +21,7 @@ export function SecurePDFViewer({ pdfData, onDownload }: SecurePDFViewerProps) {
         URL.revokeObjectURL(blobUrl)
       }
     }
-  }, [pdfData])
+  }, [pdfData, forceLoad])
   
   // Auto-detect PDF loading failures and show fallback
   useEffect(() => {
@@ -59,12 +60,34 @@ export function SecurePDFViewer({ pdfData, onDownload }: SecurePDFViewerProps) {
 
       console.log('Setting up PDF blob, data size:', pdfData.length)
       
-      // Validate PDF data - check for PDF header
-      const pdfHeader = new TextDecoder().decode(pdfData.slice(0, 8))
-      console.log('PDF header:', pdfHeader)
-      
-      if (!pdfHeader.startsWith('%PDF-')) {
-        throw new Error('Invalid PDF data - missing PDF header')
+      // Skip header validation if force loading
+      if (!forceLoad) {
+        // Validate PDF data - check for PDF header
+        // Convert first 8 bytes to string to check for PDF signature
+        const headerBytes = pdfData.slice(0, 8)
+        const pdfHeader = String.fromCharCode(...headerBytes)
+        console.log('PDF header:', pdfHeader)
+        console.log('PDF header bytes:', Array.from(headerBytes).map(b => b.toString(16)).join(' '))
+        
+        // Check for PDF magic number - should start with %PDF-
+        if (!pdfHeader.startsWith('%PDF-')) {
+          // Try alternative check - sometimes the data might have different encoding
+          const alternativeHeader = new TextDecoder('utf-8', { fatal: false }).decode(headerBytes)
+          console.log('Alternative PDF header:', alternativeHeader)
+          
+          if (!alternativeHeader.startsWith('%PDF-')) {
+            // Show more detailed error for debugging
+            console.error('Invalid PDF header detected:', {
+              expectedStart: '%PDF-',
+              actualHeader: pdfHeader,
+              alternativeHeader: alternativeHeader,
+              firstBytes: Array.from(headerBytes).map(b => `0x${b.toString(16)}`).join(' ')
+            })
+            throw new Error(`Invalid PDF data - missing PDF header. Found: "${pdfHeader}" (expected: "%PDF-")`)
+          }
+        }
+      } else {
+        console.log('Force loading PDF - skipping header validation')
       }
 
       // Create blob from decrypted PDF data
@@ -108,10 +131,22 @@ export function SecurePDFViewer({ pdfData, onDownload }: SecurePDFViewerProps) {
             <p>Error: {error || 'None'}</p>
           </div>
           
-          <Button onClick={onDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF Instead
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={onDownload} className="w-full">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF Instead
+            </Button>
+            
+            {!forceLoad && error?.includes('missing PDF header') && (
+              <Button 
+                onClick={() => setForceLoad(true)} 
+                variant="outline"
+                className="w-full"
+              >
+                Force Load PDF (Skip Validation)
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     )

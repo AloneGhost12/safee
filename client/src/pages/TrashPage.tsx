@@ -35,18 +35,24 @@ export function TrashPage() {
 
   // Load deleted items on component mount
   useEffect(() => {
-    console.log('TrashPage mounted, loading deleted items...')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('TrashPage mounted, loading deleted items...')
+    }
     loadDeletedItems()
   }, [])
 
-  console.log('TrashPage render - deletedNotes:', deletedNotes.length, 'deletedFiles:', deletedFiles.length, 'loading:', loading)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('TrashPage render - deletedNotes:', deletedNotes.length, 'deletedFiles:', deletedFiles.length, 'loading:', loading)
+  }
 
   const loadDeletedItems = async () => {
     try {
       setLoading(true)
       setError('')
 
-      console.log('Loading deleted items...')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Loading deleted items...')
+      }
 
       // Fetch deleted notes and files in parallel
       const [notesResponse, filesResponse] = await Promise.all([
@@ -54,14 +60,18 @@ export function TrashPage() {
         filesAPI.getDeleted()
       ])
 
-      console.log('Deleted notes response:', notesResponse)
-      console.log('Deleted files response:', filesResponse)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Deleted notes response:', notesResponse)
+        console.log('Deleted files response:', filesResponse)
+      }
 
       setDeletedNotes(notesResponse.notes)
       setDeletedFiles(filesResponse.files)
 
-      console.log('Set deleted notes:', notesResponse.notes)
-      console.log('Set deleted files:', filesResponse.files)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Set deleted notes:', notesResponse.notes)
+        console.log('Set deleted files:', filesResponse.files)
+      }
     } catch (err: any) {
       console.error('Error loading deleted items:', err)
       setError(err.message || 'Failed to load deleted items')

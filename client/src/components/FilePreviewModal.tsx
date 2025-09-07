@@ -368,21 +368,23 @@ function PDFPreviewComponent({ pdfUrl, fileName, onDownload }: PDFPreviewCompone
                 size="sm" 
                 variant="outline" 
                 onClick={() => {
-                  const iframe = document.querySelector('iframe[title*="Preview of"]') as HTMLIFrameElement
-                  const url = getViewerUrl()
-                  console.log('=== PDF DEBUG INFO ===')
-                  console.log('Current method:', currentMethod)
-                  console.log('PDF URL:', url)
-                  console.log('Raw PDF URL:', rawPdfUrl)
-                  console.log('Iframe exists:', !!iframe)
-                  if (iframe) {
-                    console.log('Iframe src:', iframe.src)
-                    console.log('Iframe dimensions:', iframe.offsetWidth, 'x', iframe.offsetHeight)
+                  if (process.env.NODE_ENV === 'development') {
+                    const iframe = document.querySelector('iframe[title*="Preview of"]') as HTMLIFrameElement
+                    const url = getViewerUrl()
+                    console.log('=== PDF DEBUG INFO ===')
+                    console.log('Current method:', currentMethod)
+                    console.log('PDF URL:', url)
+                    console.log('Raw PDF URL:', rawPdfUrl)
+                    console.log('Iframe exists:', !!iframe)
+                    if (iframe) {
+                      console.log('Iframe src:', iframe.src)
+                      console.log('Iframe dimensions:', iframe.offsetWidth, 'x', iframe.offsetHeight)
+                    }
+                    console.log('Is loading:', isLoading)
+                    console.log('Has error:', hasError)
+                    console.log('=== END DEBUG ===')
+                    alert('Debug info logged to console. Press F12 to view.')
                   }
-                  console.log('Is loading:', isLoading)
-                  console.log('Has error:', hasError)
-                  console.log('=== END DEBUG ===')
-                  alert('Debug info logged to console. Press F12 to view.')
                 }}
               >
                 <Code className="h-4 w-4 mr-1" />
@@ -726,14 +728,16 @@ export function FilePreviewModal({
               </Button>
             </div>
 
-            {/* Debug info */}
-            <div className="mb-2 text-xs text-gray-500">
-              Debug: {typeof previewContent.content === 'string' && (previewContent.content as string).length < 50 
-                ? `Content: "${previewContent.content}"` 
-                : `URL type: ${(previewContent.content as string)?.startsWith('http') ? 'HTTP URL' : 
-                             (previewContent.content as string)?.startsWith('blob:') ? 'Blob URL' :
-                             (previewContent.content as string)?.startsWith('data:') ? 'Data URL' : 'Unknown'}`}
-            </div>
+            {/* Debug info - only in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-2 text-xs text-gray-500">
+                Debug: {typeof previewContent.content === 'string' && (previewContent.content as string).length < 50 
+                  ? `Content: "${previewContent.content}"` 
+                  : `URL type: ${(previewContent.content as string)?.startsWith('http') ? 'HTTP URL' : 
+                               (previewContent.content as string)?.startsWith('blob:') ? 'Blob URL' :
+                               (previewContent.content as string)?.startsWith('data:') ? 'Data URL' : 'Unknown'}`}
+              </div>
+            )}
 
             {/* Image */}
             <div className="flex justify-center">

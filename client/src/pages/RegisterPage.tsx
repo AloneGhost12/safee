@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authAPI } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
-import { Eye, EyeOff, Lock, Mail, UserPlus } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, UserPlus, User, Phone } from 'lucide-react'
 
 export function RegisterPage() {
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -19,13 +21,43 @@ export function RegisterPage() {
   const { dispatch } = useApp()
   const navigate = useNavigate()
 
+  // Password strength validation
+  const getPasswordStrength = (pwd: string) => {
+    const checks = {
+      length: pwd.length >= 8,
+      lowercase: /(?=.*[a-z])/.test(pwd),
+      uppercase: /(?=.*[A-Z])/.test(pwd),
+      number: /(?=.*\d)/.test(pwd)
+    }
+    return checks
+  }
+
+  const passwordChecks = getPasswordStrength(password)
+
   const validateForm = () => {
-    if (!email || !password || !confirmPassword) {
+    if (!username || !email || !phoneNumber || !password || !confirmPassword) {
       return 'Please fill in all fields'
+    }
+    
+    if (username.length < 3) {
+      return 'Username must be at least 3 characters long'
     }
     
     if (password.length < 8) {
       return 'Password must be at least 8 characters long'
+    }
+    
+    // Check password complexity requirements
+    if (!/(?=.*[a-z])/.test(password)) {
+      return 'Password must contain at least one lowercase letter'
+    }
+    
+    if (!/(?=.*[A-Z])/.test(password)) {
+      return 'Password must contain at least one uppercase letter'
+    }
+    
+    if (!/(?=.*\d)/.test(password)) {
+      return 'Password must contain at least one number'
     }
     
     if (password !== confirmPassword) {
@@ -34,6 +66,10 @@ export function RegisterPage() {
     
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return 'Please enter a valid email address'
+    }
+    
+    if (!/^\+?[\d\s\-\(\)]+$/.test(phoneNumber)) {
+      return 'Please enter a valid phone number'
     }
     
     return null
@@ -52,10 +88,15 @@ export function RegisterPage() {
     setError('')
 
     try {
-      const response = await authAPI.signup(email, password)
+      const response = await authAPI.signup(username, email, phoneNumber, password)
       
       // Store user info with token
-      const user = { id: 'user-id', email, token: response.access }
+      const user = { 
+        id: response.user?.id || 'user-id', 
+        email, 
+        username,
+        token: response.access 
+      }
       dispatch({ type: 'SET_USER', payload: user })
       
       navigate('/vault')
@@ -74,10 +115,10 @@ export function RegisterPage() {
             <UserPlus className="h-8 w-8 text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Create your vault
+            Create your secure vault
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Join and start securing your notes with client-side encryption
+            Enhanced security with username, email, and phone verification
           </p>
         </div>
 
@@ -89,6 +130,26 @@ export function RegisterPage() {
           )}
 
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="username" className="sr-only">
+                Username
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10"
+                  placeholder="Username (min 3 characters)"
+                  required
+                  autoComplete="username"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="email" className="sr-only">
                 Email address
@@ -104,6 +165,26 @@ export function RegisterPage() {
                   placeholder="Email address"
                   required
                   autoComplete="email"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="phoneNumber" className="sr-only">
+                Phone Number
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="pl-10"
+                  placeholder="Phone number (+1234567890)"
+                  required
+                  autoComplete="tel"
                   disabled={loading}
                 />
               </div>
@@ -139,6 +220,30 @@ export function RegisterPage() {
                   )}
                 </button>
               </div>
+              
+              {/* Password Strength Indicator */}
+              {password && (
+                <div className="mt-2 space-y-1">
+                  <div className="text-xs space-y-1">
+                    <div className={`flex items-center ${passwordChecks.length ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className="mr-2">{passwordChecks.length ? '✓' : '○'}</span>
+                      At least 8 characters
+                    </div>
+                    <div className={`flex items-center ${passwordChecks.lowercase ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className="mr-2">{passwordChecks.lowercase ? '✓' : '○'}</span>
+                      Lowercase letter
+                    </div>
+                    <div className={`flex items-center ${passwordChecks.uppercase ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className="mr-2">{passwordChecks.uppercase ? '✓' : '○'}</span>
+                      Uppercase letter
+                    </div>
+                    <div className={`flex items-center ${passwordChecks.number ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className="mr-2">{passwordChecks.number ? '✓' : '○'}</span>
+                      Number
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -175,9 +280,11 @@ export function RegisterPage() {
           </div>
 
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            <p className="mb-2">Your password will be used to encrypt your notes client-side. Make sure it's strong and memorable.</p>
-            <p>• At least 8 characters</p>
-            <p>• Mix of letters, numbers, and symbols recommended</p>
+            <p className="mb-2 font-semibold">Security Requirements:</p>
+            <p>• Username: Minimum 3 characters (used for emergency verification)</p>
+            <p>• Phone: Required for account recovery and unusual activity alerts</p>
+            <p>• Password: At least 8 characters with uppercase, lowercase, and number</p>
+            <p>• All fields are required for enhanced security features</p>
           </div>
 
           <div>

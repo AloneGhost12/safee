@@ -46,7 +46,7 @@ export class AuditLogger {
    * Log authentication events
    */
   async logAuth(data: {
-    action: 'login_attempt' | 'login_success' | 'login_failure' | 'logout' | 'signup' | 'password_reset'
+    action: 'login_attempt' | 'login_success' | 'login_failure' | 'logout' | 'signup' | 'password_reset' | 'emergency_verification_success' | 'emergency_verification_failure' | 'emergency_verification_success_2fa_required'
     userId?: string
     email?: string
     ipAddress: string

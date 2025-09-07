@@ -16,6 +16,7 @@ export interface User {
   id: string
   email: string
   token?: string
+  twoFactorEnabled?: boolean
 }
 
 interface AppState {

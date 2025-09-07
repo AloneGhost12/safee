@@ -159,19 +159,31 @@ async function request<T>(
 
 // Auth API
 export const authAPI = {
-  signup: (email: string, password: string) =>
-    request<{ access: string }>('/auth/signup', {
+  signup: (username: string, email: string, phoneNumber: string, password: string) =>
+    request<{ access: string; user?: { id: string; email: string; username: string } }>('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, email, phoneNumber, password }),
     }).then(result => {
       setAuthToken(result.access)
       return result
     }),
 
-  login: (email: string, password: string) =>
-    request<{ access: string }>('/auth/login', {
+  login: (identifier: string, password: string) =>
+    request<{ access: string; requires2FA?: boolean; user?: { id: string; email: string; twoFactorEnabled: boolean } }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
+    }).then(result => {
+      // Only set token if login is complete (no 2FA required)
+      if (!result.requires2FA) {
+        setAuthToken(result.access)
+      }
+      return result
+    }),
+
+  verify2FALogin: (identifier: string, password: string, code: string) =>
+    request<{ access: string; user: { id: string; email: string; twoFactorEnabled: boolean } }>('/auth/2fa/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, password, code }),
     }).then(result => {
       setAuthToken(result.access)
       return result
@@ -198,7 +210,7 @@ export const authAPI = {
     }),
 
   verify2FA: (email: string, code: string) =>
-    request<{ ok: boolean }>('/auth/2fa/verify', {
+    request<{ ok: boolean; backupCodes?: string[] }>('/auth/2fa/verify', {
       method: 'POST',
       body: JSON.stringify({ email, code }),
     }),
@@ -207,6 +219,71 @@ export const authAPI = {
     request<{ ok: boolean }>('/auth/2fa/disable', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    }),
+
+  // Backup codes
+  getBackupCodesInfo: (email: string) =>
+    request<{ unusedCodesCount: number; totalCodes: number; generated?: string }>('/auth/2fa/backup-codes', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  regenerateBackupCodes: (email: string) =>
+    request<{ backupCodes: string[] }>('/auth/2fa/backup-codes/regenerate', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  loginWithBackupCode: (identifier: string, password: string, backupCode: string) =>
+    request<{ access: string; user: { id: string; email: string; twoFactorEnabled: boolean }; warningMessage?: string }>('/auth/2fa/backup-login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, password, backupCode }),
+    }).then(result => {
+      setAuthToken(result.access)
+      return result
+    }),
+
+  // Account Recovery
+  requestEmailRecovery: (email: string) =>
+    request<{ success: boolean; message: string }>('/auth/recovery/email-code', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  verifyEmailRecovery: (email: string, code: string) =>
+    request<{ bypassToken: string; message: string; expiresIn: number }>('/auth/recovery/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+
+  setupSecurityQuestions: (email: string, questions: Array<{ question: string; answer: string }>) =>
+    request<{ success: boolean; message: string }>('/auth/recovery/setup-questions', {
+      method: 'POST',
+      body: JSON.stringify({ email, questions }),
+    }),
+
+  getSecurityQuestions: (email: string) =>
+    request<{ questions: string[] }>('/auth/recovery/get-questions', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  verifySecurityQuestions: (email: string, answers: string[]) =>
+    request<{ bypassToken: string; message: string; expiresIn: number }>('/auth/recovery/verify-questions', {
+      method: 'POST',
+      body: JSON.stringify({ email, answers }),
+    }),
+
+  verifyEmergency: (email: string, username: string, phoneNumber: string, password: string) =>
+    request<{ access: string; requires2FA?: boolean; user?: { id: string; email: string; username: string; twoFactorEnabled: boolean } }>('/auth/verify-emergency', {
+      method: 'POST',
+      body: JSON.stringify({ email, username, phoneNumber, password }),
+    }).then(result => {
+      // Only set token if verification is complete (no 2FA required)
+      if (!result.requires2FA) {
+        setAuthToken(result.access)
+      }
+      return result
     }),
 }
 

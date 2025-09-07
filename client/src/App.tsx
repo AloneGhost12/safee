@@ -6,6 +6,7 @@ import { VaultPage } from './pages/VaultPage'
 import { FilesPage } from './pages/FilesPage'
 import { TrashPage } from './pages/TrashPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { AccountRecoveryPage } from './pages/AccountRecoveryPage'
 import TestingPage from './pages/TestingPage'
 import './styles/tailwind.css'
 
@@ -46,6 +47,14 @@ function AppRoutes() {
         element={
           <PublicRoute>
             <RegisterPage />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/recovery" 
+        element={
+          <PublicRoute>
+            <AccountRecoveryPage />
           </PublicRoute>
         } 
       />

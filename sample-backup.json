@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "notes": [
+    {
+      "id": "sample-note-1",
+      "title": "Sample Imported Note 1",
+      "content": "This is a sample note that was imported from a backup file. It demonstrates the import functionality.",
+      "tags": ["imported", "sample", "test"],
+      "createdAt": "2025-01-01T10:00:00.000Z",
+      "updatedAt": "2025-01-01T10:00:00.000Z",
+      "isDeleted": false,
+      "isEncrypted": false
+    },
+    {
+      "id": "sample-note-2", 
+      "title": "Another Imported Note",
+      "content": "This is another example note from the backup. Import functionality allows you to restore your notes from backup files.",
+      "tags": ["backup", "restore"],
+      "createdAt": "2025-01-01T11:00:00.000Z",
+      "updatedAt": "2025-01-01T11:00:00.000Z",
+      "isDeleted": false,
+      "isEncrypted": false
+    },
+    {
+      "id": "sample-note-3",
+      "title": "Meeting Notes - Project Planning",
+      "content": "Agenda:\n1. Review project timeline\n2. Assign tasks to team members\n3. Set up weekly check-ins\n4. Discuss budget allocation\n\nAction items:\n- Send calendar invites for weekly meetings\n- Create project documentation template\n- Set up shared drive for resources",
+      "tags": ["meeting", "project", "planning"],
+      "createdAt": "2025-01-02T09:30:00.000Z",
+      "updatedAt": "2025-01-02T09:30:00.000Z",
+      "isDeleted": false,
+      "isEncrypted": false
+    }
+  ],
+  "user": {
+    "email": "demo@example.com",
+    "id": "demo-user"
+  },
+  "metadata": {
+    "exported_at": "2025-01-07T12:00:00.000Z",
+    "total_notes": 3,
+    "export_type": "full_backup"
+  }
+}

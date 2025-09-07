@@ -1,54 +1,67 @@
-const fs = require('fs');
-const path = require('path');
+/**
+ * Debug script to help identify PDF decryption issues
+ * Run this in the browser console when experiencing PDF preview problems
+ */
 
-// Test script to debug PDF preview issues
-console.log('🔍 PDF Preview Issue Debug Script');
-console.log('=================================');
-
-// Check if test PDF exists
-const testPdfPath = path.join(__dirname, 'test-files', 'sample.pdf');
-console.log('\n📁 Checking test PDF file:');
-console.log(`Path: ${testPdfPath}`);
-
-if (fs.existsSync(testPdfPath)) {
-    const stats = fs.statSync(testPdfPath);
-    console.log(`✅ Sample PDF exists (${(stats.size / 1024).toFixed(2)} KB)`);
-} else {
-    console.log('❌ Sample PDF not found');
+function debugPDFData(pdfData) {
+  console.log('=== PDF Debug Analysis ===')
+  console.log('Data type:', typeof pdfData)
+  console.log('Data length:', pdfData.length)
+  console.log('Is Uint8Array:', pdfData instanceof Uint8Array)
+  console.log('Is ArrayBuffer:', pdfData instanceof ArrayBuffer)
+  
+  // Convert to Uint8Array if needed
+  let bytes = pdfData
+  if (pdfData instanceof ArrayBuffer) {
+    bytes = new Uint8Array(pdfData)
+  }
+  
+  // Check first 20 bytes
+  const firstBytes = bytes.slice(0, 20)
+  console.log('First 20 bytes (hex):', Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join(' '))
+  console.log('First 20 bytes (ASCII):', String.fromCharCode(...firstBytes))
+  
+  // Try different ways to read the header
+  console.log('Header as string:', String.fromCharCode(...bytes.slice(0, 8)))
+  console.log('Header with TextDecoder:', new TextDecoder().decode(bytes.slice(0, 8)))
+  console.log('Header with TextDecoder (latin1):', new TextDecoder('latin1').decode(bytes.slice(0, 8)))
+  
+  // Check for PDF signature
+  const hasPDFSignature = String.fromCharCode(...bytes.slice(0, 4)) === '%PDF'
+  console.log('Has PDF signature (%PDF):', hasPDFSignature)
+  
+  // Look for PDF signature anywhere in first 100 bytes
+  const first100 = String.fromCharCode(...bytes.slice(0, 100))
+  const pdfIndex = first100.indexOf('%PDF')
+  console.log('PDF signature found at index:', pdfIndex)
+  
+  if (pdfIndex > 0) {
+    console.log('PDF data may have extra bytes at the beginning')
+    console.log('Bytes before PDF signature:', Array.from(bytes.slice(0, pdfIndex)).map(b => b.toString(16)).join(' '))
+  }
+  
+  // Check for common file corruption patterns
+  if (bytes.length < 1024) {
+    console.log('⚠️ File is very small, may be corrupted')
+  }
+  
+  if (bytes.every(b => b === 0)) {
+    console.log('⚠️ File contains only null bytes')
+  }
+  
+  // Check end of file for PDF trailer
+  const lastBytes = bytes.slice(-20)
+  const endString = String.fromCharCode(...lastBytes)
+  console.log('Last 20 bytes:', endString)
+  console.log('Has %%EOF:', endString.includes('%%EOF'))
+  
+  console.log('=== End PDF Debug Analysis ===')
 }
 
-// Test different viewer URLs that might be causing issues
-console.log('\n🌐 Testing viewer URL patterns:');
+// Export for use
+if (typeof window !== 'undefined') {
+  window.debugPDFData = debugPDFData
+  console.log('PDF Debug utility loaded. Use debugPDFData(yourPDFData) to analyze PDF data.')
+}
 
-const sampleUrl = 'https://example.com/sample.pdf';
-const encodedUrl = encodeURIComponent(sampleUrl);
-
-console.log('1. Direct URL:', sampleUrl);
-console.log('2. Google Docs Viewer:', `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`);
-console.log('3. PDF.js Viewer:', `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodedUrl}`);
-
-console.log('\n⚠️  Common issues that cause "400 Bad Request" in Google Docs Viewer:');
-console.log('- URL encoding problems');
-console.log('- CORS restrictions on the PDF URL');
-console.log('- PDF file is password protected');
-console.log('- PDF file is corrupted or malformed');
-console.log('- PDF file is too large (Google has size limits)');
-console.log('- The PDF URL requires authentication headers');
-console.log('- The PDF URL is a blob: or data: URL (not supported by Google Docs)');
-
-console.log('\n🔧 Solutions implemented in your app:');
-console.log('✅ Multi-method fallback (Direct → Google Docs → PDF.js)');
-console.log('✅ Automatic retry on failure');
-console.log('✅ Timeout protection (15 seconds)');
-console.log('✅ Smart initial method selection based on URL type');
-console.log('✅ User controls for manual method switching');
-console.log('✅ Clear error messages with troubleshooting tips');
-
-console.log('\n🎯 Next steps to resolve your specific issue:');
-console.log('1. Check browser console for specific error messages');
-console.log('2. Verify the PDF URL is publicly accessible');
-console.log('3. Test with different PDF files to isolate the issue');
-console.log('4. Try the manual "Try Different Viewer" button');
-console.log('5. Use "Open in New Tab" to test direct browser PDF handling');
-
-console.log('\nDebug complete! 🚀');
+module.exports = { debugPDFData }

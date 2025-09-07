@@ -619,8 +619,8 @@ router.get('/:fileId/optimized', requireAuth, async (req: AuthedRequest, res: Re
     const optimizedUrl = getOptimizedImageUrl(file.cloudinaryPublicId, {
       width: width ? parseInt(width as string) : undefined,
       height: height ? parseInt(height as string) : undefined,
-      quality: quality as any || 'auto',
-      format: format as any || 'auto'
+      quality: quality ? (Number.isInteger(Number(quality)) ? Number(quality) : 'auto') : 'auto',
+      format: format && ['jpg', 'png', 'webp', 'auto'].includes(format as string) ? format as ('jpg' | 'png' | 'webp' | 'auto') : 'auto'
     })
 
     res.json({ optimizedUrl })
@@ -751,7 +751,9 @@ router.post('/:fileId/preview',
       if (file.s3Key) {
         // For S3 files, get download URL and fetch content
         const downloadResponse = await generateDownloadUrl(file.s3Key)
-        console.log(`[DEBUG] Download response for ${file.originalName}:`, downloadResponse)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Download response for ${file.originalName}:`, downloadResponse)
+        }
         
         if (!downloadResponse || !downloadResponse.downloadUrl) {
           console.error(`[ERROR] Invalid download response for ${file.originalName}:`, downloadResponse)
@@ -773,7 +775,9 @@ router.post('/:fileId/preview',
         } else if (previewType === 'image' || previewType === 'video' || previewType === 'audio') {
           // For media files, return the download URL directly
           previewContent = downloadResponse.downloadUrl
-          console.log(`[DEBUG] Image preview URL for ${file.originalName}:`, previewContent)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[DEBUG] Image preview URL for ${file.originalName}:`, previewContent)
+          }
           
           // Validate URL format
           if (!previewContent.startsWith('http')) {
@@ -794,7 +798,9 @@ router.post('/:fileId/preview',
           previewContent = file.cloudinaryUrl
         } else {
           previewContent = file.cloudinaryUrl
-          console.log(`[DEBUG] Cloudinary image URL for ${file.originalName}:`, previewContent)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[DEBUG] Cloudinary image URL for ${file.originalName}:`, previewContent)
+          }
         }
       }
 
@@ -807,12 +813,14 @@ router.post('/:fileId/preview',
         size: file.size
       })
       
-      console.log(`[DEBUG] Preview response for ${file.originalName}:`, {
-        type: previewType,
-        contentType: typeof previewContent,
-        contentLength: typeof previewContent === 'string' ? previewContent.length : 'N/A',
-        contentPreview: typeof previewContent === 'string' && previewContent.length < 100 ? previewContent : 'Too long to show'
-      })
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Preview response for ${file.originalName}:`, {
+          type: previewType,
+          contentType: typeof previewContent,
+          contentLength: typeof previewContent === 'string' ? previewContent.length : 'N/A',
+          contentPreview: typeof previewContent === 'string' && previewContent.length < 100 ? previewContent : 'Too long to show'
+        })
+      }
     } catch (fetchError) {
       logFileAccess(userId, fileId, 'preview', req, false, 'Failed to fetch preview content')
       res.json({

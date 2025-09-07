@@ -67,14 +67,14 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
         setContent(cachedNote.content)
         setTags(cachedNote.tags || [])
       } else {
-        // For demo, use placeholder values
-        setTitle(note.title || 'Encrypted Title')
-        setContent('Encrypted content - would need master key to decrypt')
-        setTags(['encrypted'])
+        // Use the actual note data (most notes are stored as plain text)
+        setTitle(note.title || '')
+        setContent(note.content || '')
+        setTags(note.tags || [])
       }
       setIsDirty(false)
     } catch (err: any) {
-      setError('Failed to decrypt note: ' + err.message)
+      setError('Failed to load note: ' + err.message)
     }
   }
 

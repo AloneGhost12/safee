@@ -1,28 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useApp, Note } from '@/context/AppContext'
-import { useCrypto } from '@/hooks/useCrypto'
 import { formatDate, truncateText } from '@/lib/utils'
 import { 
   FileText, 
-  Lock, 
   Unlock, 
   Calendar, 
   Tag,
-  MoreVertical,
-  Trash2,
-  Edit
+  MoreVertical
 } from 'lucide-react'
 
 interface NotesListProps {
   notes: Note[]
-  onSelectNote: (note: Note) => void
+  onSelectNote: (note: Note | null) => void
 }
 
 export function NotesList({ notes, onSelectNote }: NotesListProps) {
   const { state } = useApp()
-  const { decryptNote } = useCrypto()
-  const [decryptingNotes, setDecryptingNotes] = useState<Set<string>>(new Set())
 
   // Auto-decrypt notes as they become visible
   useEffect(() => {
@@ -32,25 +26,7 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
   const decryptVisibleNotes = async () => {
     // For demo purposes, we'll skip actual decryption
     // In a real app, you'd need the master key to decrypt
-    // For now, we'll just show placeholder decrypted content
-    
-    for (const note of notes.slice(0, 10)) { // Only decrypt first 10 for performance
-      if (!state.decryptedNotes.has(note.id) && !decryptingNotes.has(note.id)) {
-        // Mock decryption for demo
-        const mockDecryptedNote = {
-          ...note,
-          title: `Decrypted: ${note.title || 'Untitled'}`,
-          content: `This is decrypted content for note ${note.id}...`,
-          tags: ['demo', 'encrypted'],
-          isEncrypted: false,
-        }
-        
-        // Simulate decryption in state
-        setTimeout(() => {
-          // In real app, use: dispatch({ type: 'SET_DECRYPTED_NOTE', payload: { id: note.id, note: mockDecryptedNote } })
-        }, 100)
-      }
-    }
+    // For now, we'll just show the content as-is
   }
 
   const handleNoteClick = (note: Note) => {
@@ -58,9 +34,8 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
   }
 
   const renderNoteCard = (note: Note) => {
-    const cachedNote = state.decryptedNotes.get(note.id)
-    const isDecrypted = !!cachedNote
-    const displayNote = cachedNote || note
+    // For most notes, just display the content directly since they're not actually encrypted
+    const displayNote = note
 
     return (
       <div
@@ -73,21 +48,12 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
             <h3 className="font-medium text-gray-900 dark:text-white truncate">
-              {isDecrypted ? displayNote.title : (
-                <span className="flex items-center text-gray-500">
-                  <Lock className="h-3 w-3 mr-1" />
-                  Encrypted Title
-                </span>
-              )}
+              {displayNote.title || 'Untitled'}
             </h3>
           </div>
           
           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {isDecrypted ? (
-              <Unlock className="h-4 w-4 text-green-500" />
-            ) : (
-              <Lock className="h-4 w-4 text-gray-400" />
-            )}
+            <Unlock className="h-4 w-4 text-green-500" />
             <Button
               variant="ghost"
               size="sm"
@@ -104,20 +70,13 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
 
         {/* Content Preview */}
         <div className="mb-3">
-          {isDecrypted ? (
-            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-              {truncateText(displayNote.content, 150)}
-            </p>
-          ) : (
-            <div className="text-sm text-gray-400 italic flex items-center">
-              <Lock className="h-3 w-3 mr-1" />
-              Content encrypted - click to decrypt and view
-            </div>
-          )}
+          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+            {truncateText(displayNote.content || 'No content', 150)}
+          </p>
         </div>
 
         {/* Tags */}
-        {isDecrypted && displayNote.tags && displayNote.tags.length > 0 && (
+        {displayNote.tags && displayNote.tags.length > 0 && (
           <div className="flex items-center flex-wrap gap-1 mb-3">
             <Tag className="h-3 w-3 text-gray-400" />
             {displayNote.tags.slice(0, 3).map((tag: string) => (
@@ -146,7 +105,7 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
           <div className="flex items-center space-x-2">
             {note.isEncrypted && (
               <span className="flex items-center text-green-600 dark:text-green-400">
-                <Lock className="h-3 w-3 mr-1" />
+                <Unlock className="h-3 w-3 mr-1" />
                 Encrypted
               </span>
             )}
@@ -170,7 +129,7 @@ export function NotesList({ notes, onSelectNote }: NotesListProps) {
           }
         </p>
         {!state.searchQuery && state.selectedTags.length === 0 && (
-          <Button onClick={() => onSelectNote(null as any)}>
+          <Button onClick={() => onSelectNote(null)}>
             <FileText className="h-4 w-4 mr-2" />
             Create Note
           </Button>
