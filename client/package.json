@@ -10,6 +10,8 @@
     "build:domain:win": "set VITE_BASE_PATH=/safee/ && vite build",
     "build:root": "VITE_BASE_PATH=/ vite build",
     "build:root:win": "set VITE_BASE_PATH=/ && vite build",
+    "build:github": "VITE_BASE_PATH=/safee/ vite build",
+    "build:github:win": "set VITE_BASE_PATH=/safee/ && vite build",
     "preview": "vite preview",
     "start": "npm run preview",
     "docker:build": "docker build -t vault-client .",
