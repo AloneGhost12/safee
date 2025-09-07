@@ -36,7 +36,7 @@ jobs:
         working-directory: ./client
         run: npm run build
         env:
-          VITE_API_URL: https://safe-vault-qn1g.onrender.com
+          VITE_API_URL: https://safee-y8iw.onrender.com
           VITE_APP_NAME: Safee - Personal Vault
 
       - name: Setup Pages
