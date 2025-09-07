@@ -12,11 +12,7 @@ Your encrypted vault now supports **dual storage options**:
 
 Add these Cloudinary credentials to your server `.env` file:
 
-```env
-# Cloudinary Configuration
-CLOUDINARY_CLOUD_NAME=dtzhskby3
-CLOUDINARY_API_KEY=279872768346294
-CLOUDINARY_API_SECRET=R2ioEHtBBs-6Kwmj-pbCL5Er3CQ
+
 ```
 
 ### 2. Start the Application
