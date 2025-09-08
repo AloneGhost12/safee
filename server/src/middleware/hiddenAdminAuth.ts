@@ -89,7 +89,34 @@ export const adminHoneypot = (req: Request, res: Response, next: NextFunction) =
   next()
 }
 
-// Admin access token validation
+// IP address validation with range support
+const isIPAllowed = (clientIP: string): boolean => {
+  const allowedIPs = process.env.ADMIN_ALLOWED_IPS?.split(',') || []
+  
+  // Exact IP match
+  if (allowedIPs.includes(clientIP)) {
+    return true
+  }
+  
+  // Check if IP is in mobile carrier range (1.39.x.x for your carrier)
+  if (clientIP.startsWith('1.39.')) {
+    return true // Allow all IPs from your mobile carrier range
+  }
+  
+  // Check for local network ranges
+  if (clientIP.startsWith('192.168.')) {
+    return true // Allow local network IPs
+  }
+  
+  // Check for localhost/development
+  if (clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === 'localhost') {
+    return true
+  }
+  
+  return false
+}
+
+// Admin access validation middleware
 export const validateAdminAccess = (req: any, res: Response, next: NextFunction) => {
   const token = req.headers['x-admin-token'] || req.query.access_token
   const pathToken = req.params.secretPath
@@ -106,9 +133,8 @@ export const validateAdminAccess = (req: any, res: Response, next: NextFunction)
     return res.status(404).json({ error: 'Not found' })
   }
   
-  // IP whitelist check
-  const allowedIPs = (process.env.ADMIN_ALLOWED_IPS || '').split(',').map(ip => ip.trim()).filter(Boolean)
-  if (allowedIPs.length > 0 && !allowedIPs.includes(req.ip || '')) {
+  // IP whitelist check using flexible validation
+  if (!isIPAllowed(req.ip || '')) {
     logUnauthorizedAccess(req, 'ip_not_whitelisted')
     return res.status(404).json({ error: 'Not found' })
   }
