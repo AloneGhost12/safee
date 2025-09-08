@@ -165,8 +165,8 @@ router.post('/users/:userId/lock', requireUserManagement, validateInput(z.object
     adminId: req.userId!,
     targetUserId: userId,
     details: { reason, duration },
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent')
+    ipAddress: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown'
   })
   
   res.json({ success: true, message: 'User account locked' })
@@ -196,8 +196,8 @@ router.post('/users/:userId/unlock', requireUserManagement, asyncHandler(async (
     action: 'user_account_unlocked',
     adminId: req.userId!,
     targetUserId: userId,
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent')
+    ipAddress: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown'
   })
   
   res.json({ success: true, message: 'User account unlocked' })
@@ -308,8 +308,8 @@ router.delete('/sessions/:sessionId', requireSecurityMonitoring, asyncHandler(as
     action: 'session_revoked',
     adminId: req.userId!,
     targetSessionId: sessionId,
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent')
+    ipAddress: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown'
   })
   
   res.json({ success: true, message: 'Session revoked' })
@@ -371,8 +371,8 @@ router.post('/users/:userId/grant-admin', requireSystemAdmin, validateInput(z.ob
     adminId: req.userId!,
     targetUserId: userId,
     details: { role, permissions },
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent')
+    ipAddress: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown'
   })
   
   res.json({ success: true, message: 'Admin privileges granted' })
@@ -401,8 +401,8 @@ router.post('/users/:userId/revoke-admin', requireSystemAdmin, asyncHandler(asyn
     action: 'admin_privileges_revoked',
     adminId: req.userId!,
     targetUserId: userId,
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent')
+    ipAddress: req.ip || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown'
   })
   
   res.json({ success: true, message: 'Admin privileges revoked' })
