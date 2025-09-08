@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
+import { AdminProvider } from './contexts/AdminContext'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { VaultPage } from './pages/VaultPage'
@@ -7,6 +8,9 @@ import { FilesPage } from './pages/FilesPage'
 import { TrashPage } from './pages/TrashPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AccountRecoveryPage } from './pages/AccountRecoveryPage'
+import AdminLogin from './components/AdminLogin'
+import AdminDashboard from './components/AdminDashboard'
+import { RequireAdmin } from './contexts/AdminContext'
 import TestingPage from './pages/TestingPage'
 import './styles/tailwind.css'
 
@@ -137,6 +141,20 @@ function AppRoutes() {
         } 
       />
       
+      {/* Admin routes */}
+      <Route 
+        path="/admin/login" 
+        element={<AdminLogin />} 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <RequireAdmin>
+            <AdminDashboard />
+          </RequireAdmin>
+        } 
+      />
+      
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/vault" replace />} />
       <Route path="*" element={<Navigate to="/vault" replace />} />
@@ -148,9 +166,11 @@ function App() {
   return (
     <Router basename={getBasename()}>
       <AppProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <AppRoutes />
-        </div>
+        <AdminProvider>
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <AppRoutes />
+          </div>
+        </AdminProvider>
       </AppProvider>
     </Router>
   )

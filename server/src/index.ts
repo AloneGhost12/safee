@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser'
 import { createServer } from 'http'
 import { connect } from './db'
 import authRoutes from './routes/auth'
+import adminRoutes from './routes/admin'
 import healthRoutes from './routes/health'
 import notesRoutes from './routes/notes'
 import filesRoutes from './routes/files'
@@ -73,6 +74,7 @@ app.use(globalLimiter)
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/admin', adminRoutes)
 app.use('/api', healthRoutes)
 app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)

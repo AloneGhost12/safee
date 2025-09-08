@@ -174,6 +174,42 @@ export class AuditLogger {
   }
 
   /**
+   * Log admin operations
+   */
+  async logAdmin(data: {
+    action: string
+    adminId: string
+    targetUserId?: string
+    targetSessionId?: string
+    details?: Record<string, any>
+    ipAddress: string
+    userAgent: string
+  }): Promise<void> {
+    const entry: AuditLogEntry = {
+      userId: new ObjectId(data.adminId),
+      action: data.action,
+      resource: 'admin',
+      details: {
+        targetUserId: data.targetUserId,
+        targetSessionId: data.targetSessionId,
+        ...data.details
+      },
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      timestamp: new Date(),
+      success: true,
+      riskLevel: this.assessAdminRisk(data.action)
+    }
+
+    await this.collection.insertOne(entry)
+
+    // Alert on critical admin actions
+    if (entry.riskLevel === 'critical') {
+      await this.alertSuspiciousActivity(entry)
+    }
+  }
+
+  /**
    * Get audit logs for a user
    */
   async getUserAuditLogs(userId: string, limit: number = 100): Promise<AuditLogEntry[]> {
@@ -232,6 +268,26 @@ export class AuditLogger {
     if (action === 'signup') return 'low'
     
     return 'low'
+  }
+
+  private assessAdminRisk(action: string): 'low' | 'medium' | 'high' | 'critical' {
+    const criticalActions = [
+      'admin_privileges_granted',
+      'admin_privileges_revoked',
+      'user_account_deleted',
+      'system_config_changed'
+    ]
+    
+    const highActions = [
+      'user_account_locked',
+      'session_revoked',
+      'unusual_activity_cleared'
+    ]
+    
+    if (criticalActions.includes(action)) return 'critical'
+    if (highActions.includes(action)) return 'high'
+    
+    return 'medium'
   }
 
   private async alertSuspiciousActivity(entry: AuditLogEntry): Promise<void> {

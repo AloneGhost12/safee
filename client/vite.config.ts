@@ -9,7 +9,7 @@ export default defineConfig({
     port: 5179,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:4000',
+        target: process.env.VITE_API_URL || 'http://localhost:4001',
         changeOrigin: false,
         secure: false,
       },
@@ -21,7 +21,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4000'),
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4001'),
     'import.meta.env.VITE_BASE_PATH': JSON.stringify(process.env.VITE_BASE_PATH || '/'),
   },
 })

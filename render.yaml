@@ -16,8 +16,7 @@ services:
         value: 0.0.0.0
       - key: MONGO_URI
         sync: false
-      # Note: Set MONGO_URI manually in Render dashboard with value:
-      # mongodb+srv://adharshnp92:OjMNYzmnZnR4sVnl@cluster0.vrx397v.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      # Note: Set MONGO_URI manually in Render dashboard with your MongoDB Atlas connection string
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

@@ -102,3 +102,32 @@ jspm_packages/
 *.pfx
 config/keys.js
 config/prod.js
+
+# Test files with hardcoded credentials (DANGEROUS)
+admin-session-test.js
+create-test-user.js
+simple-session-test.js
+real-session-test.js
+test-mongodb.js
+test-session-revocation.js
+test-auto-logout-lockout.js
+test-unusual-activity.js
+**/credentials.js
+**/secrets.js
+
+# Markdown files that might accidentally contain credentials
+TEMP_*.md
+CREDENTIALS_*.md
+*_CREDENTIALS.md
+
+# Backup files that might contain sensitive data
+*.backup
+*.bak
+*.tmp
+backup/
+backups/
+
+# Database dumps
+*.sql
+*.dump
+*.db

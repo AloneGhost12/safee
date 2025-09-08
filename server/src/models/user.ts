@@ -8,6 +8,10 @@ export type User = {
   phoneNumber: string
   passwordHash: string
   argonSalt: string
+  role?: 'user' | 'admin' | 'super_admin'
+  adminCreatedAt?: Date
+  adminCreatedBy?: string
+  adminPermissions?: string[]
   totpSecret?: string
   totpTempSecret?: string
   wrappedDEK?: string
@@ -16,6 +20,7 @@ export type User = {
   updatedAt?: Date
   lastLoginAt?: Date
   lastFailedLoginAt?: Date
+  lastVerifiedAt?: Date
   failedLoginAttempts?: number
   accountLocked?: boolean
   accountLockedUntil?: Date

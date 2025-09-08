@@ -21,7 +21,7 @@ export function getClientInfo(req: Request) {
 
 export class SecurityManager {
   private static readonly MAX_FAILED_ATTEMPTS = 5
-  private static readonly LOCKOUT_DURATION_MINUTES = 10
+  private static readonly LOCKOUT_DURATION_MINUTES = 5
   private static readonly UNUSUAL_ACTIVITY_THRESHOLD = 3
 
   /**
@@ -171,17 +171,55 @@ export class SecurityManager {
   }
 
   /**
+   * Clear unusual activity detection for a user (after emergency verification)
+   */
+  static async clearUnusualActivityFlags(userId: string): Promise<void> {
+    const col = usersCollection()
+    
+    await col.updateOne(
+      { _id: new ObjectId(userId) },
+      { 
+        $set: { 
+          lastVerifiedAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+    )
+  }
+
+  /**
    * Detect unusual activity
    */
   static async detectUnusualActivity(user: User, req: Request): Promise<boolean> {
     const clientInfo = getClientInfo(req)
     
-    // Check recent login history
+    // Don't trigger unusual activity detection for new accounts (less than 24 hours old)
+    const accountAge = Date.now() - user.createdAt.getTime()
+    const isNewAccount = accountAge < 24 * 60 * 60 * 1000 // 24 hours
+    
+    if (isNewAccount) {
+      return false // Skip unusual activity detection for new accounts
+    }
+
+    // Skip if user was recently verified (within last 6 hours)
+    if (user.lastVerifiedAt) {
+      const timeSinceVerification = Date.now() - user.lastVerifiedAt.getTime()
+      if (timeSinceVerification < 6 * 60 * 60 * 1000) { // 6 hours
+        return false
+      }
+    }
+    
+    // Check recent login history (only successful logins)
     const recentEvents = user.securityEvents?.filter(
       event => 
         event.eventType === 'login_success' && 
         event.timestamp > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
     ) || []
+
+    // Need at least 3 successful logins to establish a pattern
+    if (recentEvents.length < 3) {
+      return false
+    }
 
     // Check for new IP address
     const knownIPs = recentEvents.map(event => event.ipAddress).filter(Boolean)
@@ -191,16 +229,21 @@ export class SecurityManager {
     const knownUserAgents = recentEvents.map(event => event.userAgent).filter(Boolean)
     const isNewUserAgent = !knownUserAgents.includes(clientInfo.userAgent)
 
-    // Check for rapid login attempts from different locations
+    // Check for rapid failed login attempts from different locations
     const recentFailures = user.securityEvents?.filter(
       event => 
         event.eventType === 'login_failure' && 
-        event.timestamp > new Date(Date.now() - 60 * 60 * 1000) // Last hour
+        event.timestamp > new Date(Date.now() - 2 * 60 * 60 * 1000) // Last 2 hours (increased from 1 hour)
     ) || []
 
     const hasMultipleFailures = recentFailures.length >= this.UNUSUAL_ACTIVITY_THRESHOLD
 
-    return isNewIP || (isNewUserAgent && hasMultipleFailures)
+    // Only trigger if BOTH new IP AND new user agent with recent failures
+    // OR if there are many recent failures (5+) from different IPs
+    const differentFailureIPs = new Set(recentFailures.map(f => f.ipAddress).filter(Boolean))
+    const hasFailuresFromMultipleIPs = differentFailureIPs.size >= 3
+
+    return (isNewIP && isNewUserAgent && hasMultipleFailures) || hasFailuresFromMultipleIPs
   }
 
   /**

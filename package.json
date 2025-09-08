@@ -13,5 +13,9 @@
     "build": "npm --workspace server run build",
     "build:full": "npm --workspace client run build && npm --workspace server run build",
     "start": "npm --workspace server run start"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "mongodb": "^6.19.0"
   }
 }

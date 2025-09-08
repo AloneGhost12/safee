@@ -328,18 +328,29 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
     )
     
     const id = user._id!.toHexString()
-    const access = signAccess({ sub: id })
-    const refresh = signRefresh({ sub: id })
     
+    // Create session first to get session ID
     const sessions = sessionsCollection()
-    await sessions.insertOne({ 
+    const sessionResult = await sessions.insertOne({ 
       userId: user._id, 
-      refreshToken: refresh, 
+      refreshToken: '', // Will be updated after JWT creation
       createdAt: new Date(), 
       expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent
     })
+    
+    const sessionId = sessionResult.insertedId.toHexString()
+    
+    // Include session ID in JWT claims
+    const access = signAccess({ sub: id, jti: sessionId })
+    const refresh = signRefresh({ sub: id, jti: sessionId })
+    
+    // Update session with refresh token
+    await sessions.updateOne(
+      { _id: sessionResult.insertedId },
+      { $set: { refreshToken: refresh } }
+    )
     
     res.cookie(
       process.env.SESSION_COOKIE_NAME || 'pv_sess', 
@@ -423,12 +434,14 @@ router.post('/verify-emergency', validateInput(z.object({
     }
     
     // Clear unusual activity flags and allow login
+    await SecurityManager.clearUnusualActivityFlags(user._id!.toHexString())
+    
+    // Update verification timestamp
     await col.updateOne(
       { _id: user._id },
       { 
-        $unset: { 'securityEvents.unusualActivity': 1 },
         $set: { 
-          verifiedAt: new Date(),
+          lastVerifiedAt: new Date(),
           lastLoginAt: new Date()
         }
       }

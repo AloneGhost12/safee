@@ -1,7 +1,7 @@
 import { Router, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { ObjectId } from 'mongodb'
-import { requireAuth, AuthedRequest } from '../middleware/auth'
+import { requireAuth, requireSessionAuth, AuthedRequest } from '../middleware/auth'
 import { 
   fileAccessRateLimit, 
   logFileAccess, 
@@ -46,7 +46,7 @@ const fileIdSchema = z.object({
 /**
  * Request presigned URL for file upload
  */
-router.post('/upload-url', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.post('/upload-url', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
@@ -232,7 +232,7 @@ router.post('/:fileId/download-url',
 /**
  * Get list of user's files
  */
-router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
@@ -267,7 +267,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res: Response, next: Nex
 /**
  * Get file metadata for decryption (used by preview system)
  */
-router.get('/:fileId/metadata', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/:fileId/metadata', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
@@ -302,7 +302,7 @@ router.get('/:fileId/metadata', requireAuth, async (req: AuthedRequest, res: Res
 /**
  * Get list of user's deleted files (for trash)
  */
-router.get('/deleted', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/deleted', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
@@ -338,7 +338,7 @@ router.get('/deleted', requireAuth, async (req: AuthedRequest, res: Response, ne
 /**
  * Delete a file
  */
-router.delete('/:fileId', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.delete('/:fileId', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
@@ -592,7 +592,7 @@ router.post('/cloudinary/upload-url', requireAuth, async (req: AuthedRequest, re
 /**
  * Get optimized image URL from Cloudinary
  */
-router.get('/:fileId/optimized', requireAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.get('/:fileId/optimized', requireSessionAuth, async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
