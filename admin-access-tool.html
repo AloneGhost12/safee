@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 Ultra-Secure Admin Access</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 20px;
+        }
+        .status {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            border-radius: 5px;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 5px;
+            margin: 10px 5px;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .credentials {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid #ffff00;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .ip-status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .ip-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .ip-allowed { background: #00ff00; }
+        .ip-blocked { background: #ff0000; }
+        .admin-frame {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            background: #000;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 ULTRA-SECURE ADMIN ACCESS</h1>
+            <p>Facebook/WhatsApp Level Security</p>
+        </div>
+
+        <div class="status" id="statusDiv">
+            <h3>🛡️ Security Status Check</h3>
+            <div class="ip-status">
+                <div class="ip-indicator" id="ipIndicator"></div>
+                <span id="ipStatus">Checking your IP...</span>
+            </div>
+        </div>
+
+        <div class="credentials">
+            <h3>🔑 Access Credentials</h3>
+            <p><strong>Environment:</strong> <span id="environment">Production</span></p>
+            <p><strong>Server URL:</strong> <span id="serverUrl">https://safee-y8iw.onrender.com</span></p>
+            <p><strong>Secret Path:</strong> <span id="secretPath">Get from server logs</span></p>
+            <p><strong>Access Token:</strong> <span id="accessToken">Get from server logs</span></p>
+        </div>
+
+        <div class="form-group">
+            <label for="environmentSelect">🌐 Environment:</label>
+            <select id="environmentSelect" onchange="updateEnvironment()">
+                <option value="production">Production (Render)</option>
+                <option value="development">Development (Local)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="secretPathInput">🕵️ Secret Path (from server logs):</label>
+            <input type="text" id="secretPathInput" placeholder="admin_xyz123abc" 
+                   value="admin_x99md0hkpa">
+        </div>
+
+        <div class="form-group">
+            <label for="accessTokenInput">🎫 Access Token (from server logs):</label>
+            <input type="text" id="accessTokenInput" placeholder="token_abc456def" 
+                   value="token_ulpie1p0ed">
+        </div>
+
+        <div style="text-align: center;">
+            <button onclick="generateAccessUrl()" style="background: #ffff00; color: #000;">
+                🔗 Generate Admin URL
+            </button>
+            <button onclick="testConnection()" style="background: #00ffff; color: #000;">
+                🧪 Test Connection
+            </button>
+            <button onclick="accessAdmin()" style="background: #00ff00; color: #000;">
+                🚀 Access Admin Panel
+            </button>
+        </div>
+
+        <div id="resultDiv" class="status" style="display: none;">
+            <h3>📋 Results</h3>
+            <pre id="resultText"></pre>
+        </div>
+
+        <iframe id="adminFrame" class="admin-frame"></iframe>
+
+        <div class="status">
+            <h3>⚠️ Security Reminders</h3>
+            <ul>
+                <li>✅ Only accessible from your 3 whitelisted IPs</li>
+                <li>✅ Secret path and token change on server restart</li>
+                <li>✅ Maximum 3 attempts per 15 minutes</li>
+                <li>✅ All access attempts are logged</li>
+                <li>✅ Returns 404 to hide admin panel existence</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Your whitelisted IPs
+        const allowedIPs = ['100.99.48.91', '192.168.43.156', '192.168.43.1', '1.39.46.19'];
+        
+        // Check user's IP on load
+        window.onload = function() {
+            checkUserIP();
+            updateEnvironment();
+        };
+
+        async function checkUserIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                const userIP = data.ip;
+                
+                const isAllowed = allowedIPs.includes(userIP);
+                const indicator = document.getElementById('ipIndicator');
+                const status = document.getElementById('ipStatus');
+                
+                if (isAllowed) {
+                    indicator.className = 'ip-indicator ip-allowed';
+                    status.innerHTML = `✅ IP Authorized: ${userIP}`;
+                    document.getElementById('statusDiv').className = 'status success';
+                } else {
+                    indicator.className = 'ip-indicator ip-blocked';
+                    status.innerHTML = `❌ IP Not Whitelisted: ${userIP}`;
+                    document.getElementById('statusDiv').className = 'status error';
+                }
+            } catch (error) {
+                document.getElementById('ipStatus').innerHTML = '⚠️ Could not check IP';
+            }
+        }
+
+        function updateEnvironment() {
+            const env = document.getElementById('environmentSelect').value;
+            const serverUrl = document.getElementById('serverUrl');
+            const environment = document.getElementById('environment');
+            
+            if (env === 'production') {
+                serverUrl.textContent = 'https://safee-y8iw.onrender.com';
+                environment.textContent = 'Production (Render)';
+            } else {
+                serverUrl.textContent = 'http://localhost:4001';
+                environment.textContent = 'Development (Local)';
+            }
+        }
+
+        function generateAccessUrl() {
+            const env = document.getElementById('environmentSelect').value;
+            const secretPath = document.getElementById('secretPathInput').value;
+            const accessToken = document.getElementById('accessTokenInput').value;
+            
+            const baseUrl = env === 'production' 
+                ? 'https://safee-y8iw.onrender.com' 
+                : 'http://localhost:4001';
+            
+            const adminUrl = `${baseUrl}/api/admin/hidden/${secretPath}/access`;
+            
+            const resultDiv = document.getElementById('resultDiv');
+            const resultText = document.getElementById('resultText');
+            
+            resultText.innerHTML = `🔗 Admin URL Generated:
+${adminUrl}
+
+🎫 Required Header:
+X-Admin-Token: ${accessToken}
+
+🕵️ CURL Command:
+curl -H "X-Admin-Token: ${accessToken}" \\
+     "${adminUrl}"
+
+⚠️ Only works from your whitelisted IPs!`;
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'status success';
+        }
+
+        async function testConnection() {
+            const env = document.getElementById('environmentSelect').value;
+            const secretPath = document.getElementById('secretPathInput').value;
+            const accessToken = document.getElementById('accessTokenInput').value;
+            
+            const baseUrl = env === 'production' 
+                ? 'https://safee-y8iw.onrender.com' 
+                : 'http://localhost:4001';
+            
+            const adminUrl = `${baseUrl}/api/admin/hidden/${secretPath}/access`;
+            
+            const resultDiv = document.getElementById('resultDiv');
+            const resultText = document.getElementById('resultText');
+            
+            resultText.innerHTML = '🧪 Testing connection...';
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'status';
+            
+            try {
+                const response = await fetch(adminUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-Admin-Token': accessToken,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    resultText.innerHTML = `✅ CONNECTION SUCCESSFUL!
+Status: ${response.status}
+Admin panel is accessible!
+
+🚀 You can now access the admin panel.`;
+                    resultDiv.className = 'status success';
+                } else {
+                    resultText.innerHTML = `❌ CONNECTION FAILED
+Status: ${response.status}
+Response: ${response.statusText}
+
+Possible issues:
+- Wrong secret path or token
+- IP not whitelisted
+- Server not running
+- Rate limit exceeded`;
+                    resultDiv.className = 'status error';
+                }
+            } catch (error) {
+                resultText.innerHTML = `❌ CONNECTION ERROR
+${error.message}
+
+Check:
+- Server is running
+- Correct URL and credentials
+- Network connection`;
+                resultDiv.className = 'status error';
+            }
+        }
+
+        function accessAdmin() {
+            const env = document.getElementById('environmentSelect').value;
+            const secretPath = document.getElementById('secretPathInput').value;
+            const accessToken = document.getElementById('accessTokenInput').value;
+            
+            const baseUrl = env === 'production' 
+                ? 'https://safee-y8iw.onrender.com' 
+                : 'http://localhost:4001';
+            
+            // For demo - in real implementation, you'd need to handle CORS and authentication properly
+            const adminUrl = `${baseUrl}/api/admin/hidden/${secretPath}/access`;
+            
+            // Open in new tab (more secure than iframe for admin panel)
+            window.open(adminUrl, '_blank');
+            
+            const resultDiv = document.getElementById('resultDiv');
+            const resultText = document.getElementById('resultText');
+            
+            resultText.innerHTML = `🚀 Admin panel opened in new tab!
+
+URL: ${adminUrl}
+Token: ${accessToken}
+
+⚠️ If it doesn't work:
+1. Check your IP is whitelisted
+2. Verify secret path and token
+3. Check server logs for errors`;
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'status success';
+        }
+    </script>
+</body>
+</html>
