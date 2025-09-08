@@ -8,6 +8,7 @@ import { createServer } from 'http'
 import { connect } from './db'
 import authRoutes from './routes/auth'
 import adminRoutes from './routes/admin'
+import hiddenAdminRoutes from './routes/hiddenAdmin'
 import healthRoutes from './routes/health'
 import notesRoutes from './routes/notes'
 import filesRoutes from './routes/files'
@@ -22,6 +23,7 @@ import {
   helmetConfig, 
   configureTrustedProxies 
 } from './middleware/security'
+import { adminHoneypot } from './middleware/hiddenAdminAuth'
 import rateLimit from 'express-rate-limit'
 
 const app = express()
@@ -72,9 +74,14 @@ const globalLimiter = rateLimit({
 })
 app.use(globalLimiter)
 
+// Setup honeypot for common admin paths (logs potential attacks)
+app.use(adminHoneypot)
+
 // Routes
 app.use('/api/auth', authRoutes)
-app.use('/api/admin', adminRoutes)
+// Hidden admin routes with enterprise security
+app.use('/api/admin', hiddenAdminRoutes)
+// Keep old admin for compatibility but it's now honeypot-protected
 app.use('/api', healthRoutes)
 app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)
