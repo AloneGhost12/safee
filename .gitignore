@@ -131,3 +131,31 @@ backups/
 *.sql
 *.dump
 *.db
+
+# ADMIN PANEL FILES - NEVER COMMIT TO GITHUB (SECURITY RISK)
+admin-access-*.html
+admin-panel-*.html
+admin-color-*.html
+admin-redirector.html
+**/hiddenAdmin.ts
+**/hiddenAdminAuth.ts
+HOW_TO_ACCESS_ADMIN.md
+IP_WHITELIST_*.md
+SMART_IP_SOLUTION.md
+ULTRA_SECURE_ADMIN_*.md
+admin-access-info.js
+admin-access-tool.html
+promote-admin.js
+quick-admin.js
+test-admin-*.js
+start-server.js
+deploy-secure-admin.*
+**/admin-*.html
+admin-*.js
+test-*admin*.js
+
+# Any file containing admin secrets, tokens, or paths
+**/admin_*
+**/token_*
+admin-secrets.json
+admin-tokens.json
