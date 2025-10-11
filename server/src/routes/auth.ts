@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword } from '../utils/crypto'
 import { signAccess, signRefresh } from '../utils/jwt'
 import { generateBackupCodes } from '../utils/backupCodes'
 import { getEmailService, generateRecoveryCode } from '../services/emailService'
+import { UserRole } from '../types/permissions'
 import { SecurityManager } from '../utils/security'
 import { 
   authRateLimit, 
@@ -37,7 +38,8 @@ const signupSchema = z.object({
     .min(10, 'Phone number must be at least 10 digits')
     .max(15, 'Phone number too long')
     .regex(/^[\+]?[1-9][\d]{0,15}$/, 'Invalid phone number format'),
-  password: validationSchemas.password
+  password: validationSchemas.password,
+  viewPassword: validationSchemas.password.optional() // Optional view-only password
 })
 
 const loginSchema = z.object({ 
@@ -109,7 +111,7 @@ function getClientInfo(req: Request) {
 }
 
 router.post('/signup', validateInput(signupSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { username, email, phoneNumber, password } = req.body
+  const { username, email, phoneNumber, password, viewPassword } = req.body
   const auditLogger = AuditLogger.getInstance()
   const clientInfo = getClientInfo(req)
   
@@ -142,12 +144,23 @@ router.post('/signup', validateInput(signupSchema), asyncHandler(async (req: Req
     }
     
     const passwordHash = await hashPassword(password)
+    
+    // Hash view password if provided
+    let viewPasswordHash: string | undefined
+    if (viewPassword && viewPassword.trim() !== '') {
+      viewPasswordHash = await hashPassword(viewPassword)
+    }
+    
     const user: User = { 
       username: username.toLowerCase(),
       email, 
       phoneNumber,
       passwordHash, 
       argonSalt: '', 
+      // Dual password support
+      viewPasswordHash,
+      viewArgonSalt: viewPasswordHash ? '' : undefined,
+      userRole: UserRole.ADMIN, // Default to admin for account owner
       createdAt: new Date(),
       lastLoginAt: new Date(),
       failedLoginAttempts: 0,
@@ -168,8 +181,16 @@ router.post('/signup', validateInput(signupSchema), asyncHandler(async (req: Req
     const result = await col.insertOne(user as any)
     const id = result.insertedId.toHexString()
     
-    const access = signAccess({ sub: id })
-    const refresh = signRefresh({ sub: id })
+    const access = signAccess({ 
+      sub: id, 
+      role: UserRole.ADMIN,
+      userId: id 
+    })
+    const refresh = signRefresh({ 
+      sub: id, 
+      role: UserRole.ADMIN,
+      userId: id 
+    })
     
     const sessions = sessionsCollection()
     await sessions.insertOne({ 
@@ -271,9 +292,20 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
       })
     }
     
-    const ok = await verifyPassword(user.passwordHash, password)
+    // Check both main password and view password
+    const mainPasswordOk = await verifyPassword(user.passwordHash, password)
+    let viewPasswordOk = false
+    let loginRole = UserRole.ADMIN // Default to admin access
     
-    if (!ok) {
+    // Check view password if main password fails and view password exists
+    if (!mainPasswordOk && user.viewPasswordHash) {
+      viewPasswordOk = await verifyPassword(user.viewPasswordHash, password)
+      if (viewPasswordOk) {
+        loginRole = UserRole.VIEWER
+      }
+    }
+    
+    if (!mainPasswordOk && !viewPasswordOk) {
       // Handle failed login with SecurityManager
       const isNowLocked = await SecurityManager.handleFailedLogin(user._id!.toHexString(), req)
       
@@ -322,18 +354,19 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
       })
     }
     
-    // Reset failed attempts on successful login
+    // Reset failed attempts on successful login and update user role
     await col.updateOne(
       { _id: user._id },
       { 
         $set: { 
           failedLoginAttempts: 0,
           accountLocked: false,
-          lastLoginAt: new Date()
+          lastLoginAt: new Date(),
+          userRole: loginRole // Update the current login role
         }
       }
     )
-    
+
     const id = user._id!.toHexString()
     
     // Create session first to get session ID
@@ -349,11 +382,19 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
     
     const sessionId = sessionResult.insertedId.toHexString()
     
-    // Include session ID in JWT claims
-    const access = signAccess({ sub: id, jti: sessionId })
-    const refresh = signRefresh({ sub: id, jti: sessionId })
-    
-    // Update session with refresh token
+    // Include session ID and role in JWT claims
+    const access = signAccess({ 
+      sub: id, 
+      jti: sessionId,
+      role: loginRole,
+      userId: id // For backward compatibility
+    })
+    const refresh = signRefresh({ 
+      sub: id, 
+      jti: sessionId,
+      role: loginRole,
+      userId: id
+    })    // Update session with refresh token
     await sessions.updateOne(
       { _id: sessionResult.insertedId },
       { $set: { refreshToken: refresh } }
@@ -378,7 +419,10 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
       user: {
         id,
         email: user.email,
-        twoFactorEnabled: false
+        username: user.username,
+        role: loginRole,
+        twoFactorEnabled: false,
+        permissions: require('../types/permissions').getUserPermissions(loginRole)
       }
     })
   } catch (error) {

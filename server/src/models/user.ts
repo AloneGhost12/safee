@@ -1,5 +1,6 @@
 import { getClient } from '../db'
 import { ObjectId } from 'mongodb'
+import { UserRole } from '../types/permissions'
 
 export type User = {
   _id?: ObjectId
@@ -8,6 +9,10 @@ export type User = {
   phoneNumber: string
   passwordHash: string
   argonSalt: string
+  // Dual password system
+  viewPasswordHash?: string  // Optional view-only password
+  viewArgonSalt?: string     // Salt for view password
+  userRole: UserRole         // Current user role (admin/viewer)
   role?: 'user' | 'admin' | 'super_admin'
   adminCreatedAt?: Date
   adminCreatedBy?: string
