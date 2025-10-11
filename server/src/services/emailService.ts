@@ -31,47 +31,127 @@ export interface EmailServiceResult {
 export class BrevoEmailService implements EmailService {
   private transporter: nodemailer.Transporter
   private auditLogger: AuditLogger
+  private connectionVerified: boolean = false
+  private retryCount: number = 0
+  private maxRetries: number = 3
 
   constructor() {
     this.auditLogger = AuditLogger.getInstance()
+    this.initializeTransporter()
+  }
+
+  private initializeTransporter(): void {
+    // Create SMTP transporter with production-optimized settings
+    const isProduction = process.env.NODE_ENV === 'production'
     
-    // Create SMTP transporter using environment configuration
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE === 'true', // Use SSL
+      port: parseInt(process.env.SMTP_PORT || (isProduction ? '587' : '465')),
+      secure: process.env.SMTP_SECURE === 'true' || (!isProduction && process.env.SMTP_PORT === '465'),
       auth: {
         user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
         pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
       },
-      connectionTimeout: 15000, // 15 seconds
-      greetingTimeout: 10000,   // 10 seconds  
-      socketTimeout: 20000,     // 20 seconds
-      // Additional configuration to improve deliverability
+      // Production-optimized timeouts
+      connectionTimeout: isProduction ? 30000 : 15000, // 30s in production
+      greetingTimeout: isProduction ? 20000 : 10000,   // 20s in production
+      socketTimeout: isProduction ? 45000 : 20000,     // 45s in production
+      // Additional configuration for production stability
       pool: true,
-      maxConnections: 5,
-      maxMessages: 100
+      maxConnections: isProduction ? 3 : 5,
+      maxMessages: isProduction ? 50 : 100,
+      // Retry configuration
+      retryDelay: 5000, // 5 seconds between retries
+      maxRetries: 3,
+      // TLS configuration for production
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: isProduction
+      },
+      // Additional debugging for production
+      logger: isProduction,
+      debug: !isProduction
     })
 
-    // Verify SMTP connection configuration
-    this.verifyConnection()
+    // Don't verify connection immediately in production to avoid blocking startup
+    if (!isProduction) {
+      this.verifyConnection()
+    } else {
+      // In production, verify connection lazily on first email send
+      console.log('📧 Email service initialized (connection will be verified on first use)')
+    }
   }
 
-  private async verifyConnection(): Promise<void> {
+  private async verifyConnection(): Promise<boolean> {
     try {
       await this.transporter.verify()
+      this.connectionVerified = true
       console.log('📧 Brevo SMTP connection verified successfully')
-      
-      // Log successful connection (using console for now)
-      console.log('✅ Email service initialized successfully')
+      return true
     } catch (error) {
+      this.connectionVerified = false
       console.error('❌ Brevo SMTP connection failed:', error)
-      // Log error (using console for now)
-      console.error('Email service initialization failed')
+      
+      // In production, try alternative configuration
+      if (process.env.NODE_ENV === 'production' && this.retryCount < this.maxRetries) {
+        console.log(`🔄 Retrying SMTP connection (attempt ${this.retryCount + 1}/${this.maxRetries})...`)
+        this.retryCount++
+        
+        // Try alternative port/settings
+        await this.tryAlternativeConfiguration()
+        return this.verifyConnection()
+      }
+      
+      return false
+    }
+  }
+
+  private async tryAlternativeConfiguration(): Promise<void> {
+    console.log('🔧 Trying alternative SMTP configuration...')
+    
+    // Alternative configurations to try
+    const alternatives = [
+      { port: 587, secure: false, tls: { ciphers: 'SSLv3' } },
+      { port: 25, secure: false, tls: { ciphers: 'SSLv3' } },
+      { port: 2525, secure: false, tls: { ciphers: 'SSLv3' } }
+    ]
+    
+    const currentAlt = alternatives[this.retryCount - 1]
+    if (currentAlt) {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        port: currentAlt.port,
+        secure: currentAlt.secure,
+        auth: {
+          user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+          pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+        },
+        connectionTimeout: 45000,
+        greetingTimeout: 30000,
+        socketTimeout: 60000,
+        pool: true,
+        maxConnections: 2,
+        maxMessages: 10,
+        tls: currentAlt.tls
+      })
+      
+      console.log(`🔧 Trying port ${currentAlt.port}, secure: ${currentAlt.secure}`)
     }
   }
 
   private async sendEmail(options: EmailOptions): Promise<EmailServiceResult> {
+    // In production, verify connection on first email send if not already verified
+    if (process.env.NODE_ENV === 'production' && !this.connectionVerified) {
+      console.log('🔍 Verifying SMTP connection before sending email...')
+      const connected = await this.verifyConnection()
+      if (!connected) {
+        return {
+          success: false,
+          error: 'SMTP connection failed after all retry attempts'
+        }
+      }
+    }
+
     try {
       const mailOptions = {
         from: options.from || `"Tridex Support" <security@tridex.app>`,
@@ -104,6 +184,20 @@ export class BrevoEmailService implements EmailService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       
       console.error('❌ Failed to send email:', errorMessage)
+      
+      // If this is a connection timeout in production, try to reinitialize
+      if (process.env.NODE_ENV === 'production' && 
+          (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT'))) {
+        console.log('🔄 Connection timeout detected, reinitializing transporter...')
+        this.connectionVerified = false
+        this.retryCount = 0
+        this.initializeTransporter()
+        
+        return {
+          success: false,
+          error: 'Connection timeout - email service reinitializing'
+        }
+      }
       
       return {
         success: false,
