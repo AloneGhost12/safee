@@ -8,6 +8,8 @@ import { filesAPI } from '@/lib/api'
 import { decryptFileName } from '@/crypto/files'
 import { PasswordPrompt } from '@/components/PasswordPrompt'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
+import { RoleBasedComponent } from '@/components/RoleBasedComponent'
+import { UserRole } from '@/types/permissions'
 import { 
   Download, 
   Trash2, 
@@ -432,10 +434,16 @@ export const FileManager = forwardRef<FileManagerRef, FileManagerProps>(({ onUpl
             {files.length} files • End-to-end encrypted
           </p>
         </div>
-        <Button onClick={onUploadClick}>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Files
-        </Button>
+        <RoleBasedComponent 
+          requiredPermission="canUpload"
+          userRole={state.user?.role as UserRole}
+          fallback={null}
+        >
+          <Button onClick={onUploadClick}>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Files
+          </Button>
+        </RoleBasedComponent>
       </div>
 
       {/* Search and Filters */}
@@ -482,10 +490,16 @@ export const FileManager = forwardRef<FileManagerRef, FileManagerProps>(({ onUpl
             }
           </p>
           {files.length === 0 && (
-            <Button onClick={onUploadClick}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Files
-            </Button>
+            <RoleBasedComponent 
+              requiredPermission="canUpload"
+              userRole={state.user?.role as UserRole}
+              fallback={null}
+            >
+              <Button onClick={onUploadClick}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Files
+              </Button>
+            </RoleBasedComponent>
           )}
         </div>
       ) : (
@@ -580,24 +594,36 @@ export const FileManager = forwardRef<FileManagerRef, FileManagerProps>(({ onUpl
                     <Eye className="h-3 w-3 mr-1" />
                     Preview
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownload(file)}
-                    disabled={!!downloadProgress || file.virusScanResult === 'infected'}
-                    className="flex-1"
+                  <RoleBasedComponent 
+                    requiredPermission="canDownload"
+                    userRole={state.user?.role as UserRole}
+                    fallback={null}
                   >
-                    <Download className="h-3 w-3 mr-1" />
-                    Download
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDelete(file.id)}
-                    disabled={!!downloadProgress}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownload(file)}
+                      disabled={!!downloadProgress || file.virusScanResult === 'infected'}
+                      className="flex-1"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download
+                    </Button>
+                  </RoleBasedComponent>
+                  <RoleBasedComponent 
+                    requiredPermission="canDelete"
+                    userRole={state.user?.role as UserRole}
+                    fallback={null}
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(file.id)}
+                      disabled={!!downloadProgress}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </RoleBasedComponent>
                 </div>
 
                 {/* Virus Warning */}
@@ -640,6 +666,7 @@ export const FileManager = forwardRef<FileManagerRef, FileManagerProps>(({ onUpl
         previewContent={filePreview.content || undefined}
         onDownload={handlePreviewDownload}
         loading={filePreview.loading}
+        userRole={state.user?.role}
       />
     </div>
   )

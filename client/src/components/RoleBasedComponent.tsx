@@ -1,5 +1,5 @@
 import React from 'react'
-import { UserRole } from '../types/permissions'
+import { UserRole } from '@/types/permissions'
 
 interface UserPermissions {
   canUpload: boolean

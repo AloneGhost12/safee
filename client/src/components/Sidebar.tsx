@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { RoleBasedComponent, RoleBadge } from '@/components/RoleBasedComponent'
+import { UserRole } from '@/types/permissions'
 import { 
   Shield, 
   FileText, 
@@ -115,14 +117,19 @@ export function Sidebar({ open, onToggle, onLogout, loggingOut = false }: Sideba
 
           {/* Footer */}
           <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 space-y-1 sm:space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-sm sm:text-base h-10 sm:h-auto"
-              onClick={() => navigate('/settings')}
+            <RoleBasedComponent 
+              requiredPermission="canAccessSettings"
+              userRole={state.user?.role as UserRole}
             >
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
-              <span className="truncate">Settings</span>
-            </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sm sm:text-base h-10 sm:h-auto"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+                <span className="truncate">Settings</span>
+              </Button>
+            </RoleBasedComponent>
 
             <Button
               variant="ghost"
@@ -146,9 +153,14 @@ export function Sidebar({ open, onToggle, onLogout, loggingOut = false }: Sideba
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-2">
                   {state.user.email}
                 </p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 px-2">
-                  🔐 Client-side encrypted
-                </p>
+                <div className="flex items-center justify-between px-2 mt-2">
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    🔐 Client-side encrypted
+                  </p>
+                  {state.user.role && (
+                    <RoleBadge role={state.user.role as UserRole} />
+                  )}
+                </div>
               </div>
             )}
           </div>

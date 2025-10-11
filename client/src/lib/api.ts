@@ -55,6 +55,16 @@ export function getAuthToken() {
   return authToken
 }
 
+export function debugAuthState() {
+  console.log('🔐 Auth State Debug:', {
+    hasToken: !!authToken,
+    tokenLength: authToken?.length,
+    tokenPrefix: authToken?.substring(0, 20) + '...',
+    localStorage: !!localStorage.getItem('user'),
+    isRefreshing
+  })
+}
+
 function processQueue(error: Error | null, token: string | null = null) {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) {
@@ -206,10 +216,13 @@ async function request<T>(
   // Add auth token if available and not already provided
   const headers = options.headers as Record<string, string> || {}
   if (authToken && !headers['Authorization']) {
+    console.log('🔐 Adding auth token to request:', endpoint)
     config.headers = {
       ...config.headers,
       Authorization: `Bearer ${authToken}`,
     }
+  } else if (!authToken && !endpoint.includes('/auth/') && !endpoint.includes('/health')) {
+    console.warn('⚠️ No auth token available for protected endpoint:', endpoint)
   }
 
   try {
@@ -252,7 +265,24 @@ async function request<T>(
     }
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      let errorData: any
+      try {
+        errorData = await response.json()
+      } catch {
+        errorData = { error: `HTTP ${response.status} - ${response.statusText}` }
+      }
+      
+      console.error(`❌ API Error [${response.status}] on ${endpoint}:`, errorData)
+      
+      // Provide more specific error messages
+      if (response.status === 401) {
+        throw new APIError(response.status, errorData.error || 'Authentication required. Please log in again.')
+      } else if (response.status === 400) {
+        throw new APIError(response.status, errorData.error || 'Invalid request data.')
+      } else if (response.status === 403) {
+        throw new APIError(response.status, errorData.error || 'Access denied.')
+      }
+      
       throw new APIError(response.status, errorData.error || `HTTP ${response.status}`)
     }
 
@@ -277,7 +307,18 @@ export const authAPI = {
     }),
 
   login: (identifier: string, password: string) =>
-    request<{ access: string; requires2FA?: boolean; user?: { id: string; email: string; twoFactorEnabled: boolean } }>('/auth/login', {
+    request<{ 
+      access: string; 
+      requires2FA?: boolean; 
+      user?: { 
+        id: string; 
+        email: string; 
+        username: string;
+        role: string;
+        permissions: any;
+        twoFactorEnabled: boolean;
+      } 
+    }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ identifier, password }),
     }).then(result => {
@@ -398,7 +439,7 @@ export const authAPI = {
     }),
 
   verifyEmergency: (email: string, username: string, phoneNumber: string, password: string) =>
-    request<{ access: string; requires2FA?: boolean; user?: { id: string; email: string; username: string; twoFactorEnabled: boolean } }>('/auth/verify-emergency', {
+    request<{ access: string; requires2FA?: boolean; user?: { id: string; email: string; username: string; twoFactorEnabled: boolean; role: string; permissions: string[] } }>('/auth/verify-emergency', {
       method: 'POST',
       body: JSON.stringify({ email, username, phoneNumber, password }),
     }).then(result => {
@@ -407,6 +448,24 @@ export const authAPI = {
         setAuthToken(result.access)
       }
       return result
+    }),
+
+  // View password management
+  setViewPassword: (currentPassword: string, viewPassword: string) =>
+    request<{ message: string }>('/auth/set-view-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, viewPassword }),
+    }),
+
+  removeViewPassword: (currentPassword: string) =>
+    request<{ message: string }>('/auth/view-password', {
+      method: 'DELETE',
+      body: JSON.stringify({ currentPassword }),
+    }),
+
+  hasViewPassword: () =>
+    request<{ hasViewPassword: boolean }>('/auth/has-view-password', {
+      method: 'GET',
     }),
 }
 

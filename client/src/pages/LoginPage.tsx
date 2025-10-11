@@ -134,8 +134,11 @@ export function LoginPage() {
           // Emergency verification successful, proceed with login
           const user = { 
             id: response.user?.id || 'user-id', 
-            email: identifier,
+            email: response.user?.email || identifier,
+            username: response.user?.username || identifier,
             token: response.access,
+            role: response.user?.role,
+            permissions: response.user?.permissions,
             twoFactorEnabled: false
           }
           dispatch({ type: 'SET_USER', payload: user })
@@ -167,8 +170,11 @@ export function LoginPage() {
           // No 2FA required, proceed with login
           const user = { 
             id: response.user?.id || 'user-id', 
-            email: identifier, 
+            email: response.user?.email || identifier, 
+            username: response.user?.username || identifier,
             token: response.access,
+            role: response.user?.role,
+            permissions: response.user?.permissions,
             twoFactorEnabled: false
           }
           dispatch({ type: 'SET_USER', payload: user })

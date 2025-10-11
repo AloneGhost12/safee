@@ -12,17 +12,29 @@ export interface AuthedRequest extends Request {
 export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
     const auth = req.headers.authorization
-    if (!auth) return res.status(401).json({ error: 'Missing auth' })
+    if (!auth) {
+      console.log('❌ requireAuth: Missing authorization header')
+      return res.status(401).json({ error: 'Missing auth' })
+    }
+    
     const [, token] = auth.split(' ')
+    if (!token) {
+      console.log('❌ requireAuth: Invalid authorization format')
+      return res.status(401).json({ error: 'Invalid auth format' })
+    }
+    
     const payload = verifyAccess(token)
     if (payload && typeof payload === 'object' && 'sub' in payload) {
       req.userId = payload.sub as string
+      console.log('✅ requireAuth: User authenticated:', req.userId)
+      next()
     } else {
+      console.log('❌ requireAuth: Invalid token payload or token verification failed')
       return res.status(401).json({ error: 'Invalid token payload' })
     }
-    next()
   } catch (err) {
-    next(err)
+    console.error('❌ requireAuth: Exception:', err)
+    return res.status(401).json({ error: 'Authentication failed' })
   }
 }
 
@@ -38,6 +50,7 @@ export async function requireSessionAuth(req: AuthedRequest, res: Response, next
     const payload = verifyAccess(token)
     
     if (!payload || typeof payload !== 'object' || !('sub' in payload) || !('jti' in payload)) {
+      console.log('❌ requireSessionAuth: Invalid token payload')
       return res.status(401).json({ error: 'Invalid token payload' })
     }
 

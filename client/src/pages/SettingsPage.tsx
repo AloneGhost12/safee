@@ -33,6 +33,13 @@ export function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPasswords, setShowPasswords] = useState(false)
   
+  // View password settings
+  const [hasViewPassword, setHasViewPassword] = useState(false)
+  const [viewPassword, setViewPassword] = useState('')
+  const [confirmViewPassword, setConfirmViewPassword] = useState('')
+  const [showViewPasswords, setShowViewPasswords] = useState(false)
+  const [currentPasswordForView, setCurrentPasswordForView] = useState('')
+  
   // 2FA settings
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
@@ -284,6 +291,70 @@ export function SettingsPage() {
     }
   }
 
+  // View Password Management Functions
+  const handleSetViewPassword = async () => {
+    if (!currentPasswordForView || !viewPassword || !confirmViewPassword) {
+      setError('Please fill in all fields')
+      return
+    }
+
+    if (viewPassword !== confirmViewPassword) {
+      setError('View passwords do not match')
+      return
+    }
+
+    if (viewPassword.length < 6) {
+      setError('View password must be at least 6 characters long')
+      return
+    }
+
+    if (!state.user || !state.user.token) {
+      setError('Please log in again to continue')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      console.log('🔑 Attempting to set view password...')
+      await authAPI.setViewPassword(currentPasswordForView, viewPassword)
+      setSuccess('View password set successfully!')
+      setHasViewPassword(true)
+      
+      // Clear form
+      setCurrentPasswordForView('')
+      setViewPassword('')
+      setConfirmViewPassword('')
+    } catch (err: any) {
+      console.error('❌ Set view password error:', err)
+      setError(err.message || 'Failed to set view password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRemoveViewPassword = async () => {
+    if (!currentPasswordForView) {
+      setError('Please enter your current password')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      await authAPI.removeViewPassword(currentPasswordForView)
+      setSuccess('View password removed successfully!')
+      setHasViewPassword(false)
+      setCurrentPasswordForView('')
+    } catch (err: any) {
+      setError(err.message || 'Failed to remove view password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDownloadBackupCodes = () => {
     if (!backupCodes.length) return
     
@@ -325,6 +396,22 @@ Store these codes in a secure location and do not share them with anyone.`
     }
 
     checkSecurityQuestions()
+  }, [state.user])
+
+  // Check if user has a view password
+  useEffect(() => {
+    const checkViewPassword = async () => {
+      try {
+        const response = await authAPI.hasViewPassword()
+        setHasViewPassword(response.hasViewPassword)
+      } catch (error) {
+        console.log('Failed to check view password status')
+      }
+    }
+
+    if (state.user) {
+      checkViewPassword()
+    }
   }, [state.user])
 
   const handleExportData = async () => {
@@ -735,6 +822,127 @@ Store these codes in a secure location and do not share them with anyone.`
                         <Button variant="destructive" onClick={handleDisable2FA} disabled={loading} size="sm">
                           {loading ? 'Disabling...' : 'Disable 2FA'}
                         </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* View Password Section */}
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6 sm:pt-8">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      View Password
+                    </h3>
+                    
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
+                        🔍 What is a View Password?
+                      </h4>
+                      <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
+                        A view password allows limited access to your vault - you can view and copy passwords but cannot create, edit, or delete them.
+                      </p>
+                      <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                        <p>• <strong>Perfect for:</strong> Shared devices, public computers, or quick access</p>
+                        <p>• <strong>Limitations:</strong> Read-only access, cannot modify vault contents</p>
+                        <p>• <strong>Security:</strong> Separate from your main password for enhanced protection</p>
+                      </div>
+                    </div>
+
+                    {!hasViewPassword ? (
+                      <div className="space-y-4 max-w-md">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Create a view password to enable read-only access to your vault.
+                        </p>
+                        
+                        <div>
+                          <Label htmlFor="current-password-view">Current Password (for verification)</Label>
+                          <div className="relative">
+                            <Input
+                              id="current-password-view"
+                              type={showViewPasswords ? 'text' : 'password'}
+                              value={currentPasswordForView}
+                              onChange={(e) => setCurrentPasswordForView(e.target.value)}
+                              disabled={loading}
+                              placeholder="Enter your current password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowViewPasswords(!showViewPasswords)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                            >
+                              {showViewPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="view-password">View Password</Label>
+                          <Input
+                            id="view-password"
+                            type={showViewPasswords ? 'text' : 'password'}
+                            value={viewPassword}
+                            onChange={(e) => setViewPassword(e.target.value)}
+                            disabled={loading}
+                            placeholder="Create a view password"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="confirm-view-password">Confirm View Password</Label>
+                          <Input
+                            id="confirm-view-password"
+                            type={showViewPasswords ? 'text' : 'password'}
+                            value={confirmViewPassword}
+                            onChange={(e) => setConfirmViewPassword(e.target.value)}
+                            disabled={loading}
+                            placeholder="Confirm view password"
+                          />
+                        </div>
+                        
+                        <Button onClick={handleSetViewPassword} disabled={loading} size="sm">
+                          <Eye className="h-4 w-4 mr-2" />
+                          {loading ? 'Creating...' : 'Set View Password'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <div className="flex items-center text-green-600 dark:text-green-400 mb-2">
+                            <Check className="h-5 w-5 mr-2" />
+                            <span className="font-medium">View password is active</span>
+                          </div>
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            You can now use your view password for read-only access to your vault.
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Enter your current password to remove the view password:
+                          </p>
+                          <div className="max-w-md">
+                            <Label htmlFor="current-password-remove">Current Password</Label>
+                            <div className="relative">
+                              <Input
+                                id="current-password-remove"
+                                type={showViewPasswords ? 'text' : 'password'}
+                                value={currentPasswordForView}
+                                onChange={(e) => setCurrentPasswordForView(e.target.value)}
+                                disabled={loading}
+                                placeholder="Enter your current password"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowViewPasswords(!showViewPasswords)}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                              >
+                                {showViewPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <Button variant="destructive" onClick={handleRemoveViewPassword} disabled={loading} size="sm">
+                            <X className="h-4 w-4 mr-2" />
+                            {loading ? 'Removing...' : 'Remove View Password'}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>

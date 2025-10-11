@@ -9,7 +9,7 @@ import { hashPassword, verifyPassword } from '../utils/crypto'
 import { signAccess, signRefresh } from '../utils/jwt'
 import { generateBackupCodes } from '../utils/backupCodes'
 import { getEmailService, generateRecoveryCode } from '../services/emailService'
-import { UserRole } from '../types/permissions'
+import { UserRole, getUserPermissions } from '../types/permissions'
 import { SecurityManager } from '../utils/security'
 import { 
   authRateLimit, 
@@ -422,7 +422,7 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
         username: user.username,
         role: loginRole,
         twoFactorEnabled: false,
-        permissions: require('../types/permissions').getUserPermissions(loginRole)
+        permissions: getUserPermissions(loginRole)
       }
     })
   } catch (error) {
@@ -514,7 +514,9 @@ router.post('/verify-emergency', validateInput(z.object({
         user: {
           id: user._id!.toHexString(),
           email: user.email,
-          twoFactorEnabled: true
+          twoFactorEnabled: true,
+          role: user.loginRole || UserRole.ADMIN,
+          permissions: getUserPermissions(user.loginRole || UserRole.ADMIN)
         }
       })
     }
@@ -554,7 +556,9 @@ router.post('/verify-emergency', validateInput(z.object({
         id: user._id!.toHexString(),
         email: user.email,
         username: user.username,
-        twoFactorEnabled: user.twoFactorEnabled || false
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        role: user.loginRole || UserRole.ADMIN,
+        permissions: getUserPermissions(user.loginRole || UserRole.ADMIN)
       }
     })
     
@@ -1844,6 +1848,169 @@ router.post('/check-registration', validateInput(z.object({
       ...clientInfo
     })
     throw error
+  }
+}))
+
+// Set/Update view password
+router.post('/set-view-password', (req, res, next) => {
+  console.log('🚀 SET VIEW PASSWORD - RAW REQUEST:', {
+    method: req.method,
+    url: req.url,
+    headers: {
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers.authorization ? 'Bearer token present' : 'No auth header',
+      'content-length': req.headers['content-length']
+    },
+    body: req.body,
+    rawBody: req.body ? JSON.stringify(req.body) : 'No body'
+  })
+  next()
+}, requireAuth, validateInput(z.object({
+  currentPassword: z.string().min(1, 'Current password required').max(128, 'Password too long'),
+  viewPassword: z.string().min(1, 'View password required').max(128, 'Password too long')
+})), asyncHandler(async (req: AuthedRequest, res: Response) => {
+  console.log('🔧 SET VIEW PASSWORD DEBUG:', {
+    userId: req.userId,
+    hasCurrentPassword: !!req.body?.currentPassword,
+    hasViewPassword: !!req.body?.viewPassword,
+    headers: req.headers.authorization ? 'Bearer token present' : 'No auth header',
+    bodyKeys: Object.keys(req.body || {})
+  })
+  
+  const { currentPassword, viewPassword } = req.body
+  
+  if (!currentPassword || !viewPassword) {
+    console.log('❌ SET VIEW PASSWORD: Missing required fields')
+    return res.status(400).json({ error: 'Current password and view password are required' })
+  }
+  
+  const userId = req.userId!
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne({ _id: new ObjectId(userId) })
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    
+    // Verify current password
+    const validPassword = await verifyPassword(user.passwordHash, currentPassword)
+    if (!validPassword) {
+      await auditLogger.logAuth({
+        action: 'password_reset',
+        userId,
+        success: false,
+        failureReason: 'Invalid current password',
+        ...clientInfo
+      })
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+    
+    // Hash the new view password
+    const viewPasswordHash = await hashPassword(viewPassword)
+    
+    // Update user with view password
+    await col.updateOne(
+      { _id: new ObjectId(userId) },
+      { 
+        $set: { 
+          viewPasswordHash,
+          viewArgonSalt: '', // Argon2 includes salt
+          updatedAt: new Date()
+        }
+      }
+    )
+    
+    await auditLogger.logAuth({
+      action: 'password_reset',
+      userId,
+      success: true,
+      ...clientInfo
+    })
+    
+    res.json({ message: 'View password set successfully' })
+  } catch (error) {
+    console.error('Set view password error:', error)
+    res.status(500).json({ error: 'Failed to set view password' })
+  }
+}))
+
+// Remove view password
+router.delete('/view-password', requireAuth, validateInput(z.object({
+  currentPassword: validationSchemas.password
+})), asyncHandler(async (req: AuthedRequest, res: Response) => {
+  const { currentPassword } = req.body
+  const userId = req.userId!
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne({ _id: new ObjectId(userId) })
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    
+    // Verify current password
+    const validPassword = await verifyPassword(user.passwordHash, currentPassword)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+    
+    // Remove view password
+    await col.updateOne(
+      { _id: new ObjectId(userId) },
+      { 
+        $unset: { 
+          viewPasswordHash: '',
+          viewArgonSalt: ''
+        },
+        $set: {
+          updatedAt: new Date()
+        }
+      }
+    )
+    
+    await auditLogger.logAuth({
+      action: 'password_reset',
+      userId,
+      success: true,
+      ...clientInfo
+    })
+    
+    res.json({ message: 'View password removed successfully' })
+  } catch (error) {
+    console.error('Remove view password error:', error)
+    res.status(500).json({ error: 'Failed to remove view password' })
+  }
+}))
+
+// Check if user has view password
+router.get('/has-view-password', requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+  console.log('🔧 HAS VIEW PASSWORD DEBUG:', {
+    userId: req.userId,
+    headers: req.headers.authorization ? 'Bearer token present' : 'No auth header'
+  })
+  
+  const userId = req.userId!
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne(
+      { _id: new ObjectId(userId) },
+      { projection: { viewPasswordHash: 1 } }
+    )
+    
+    res.json({ 
+      hasViewPassword: !!(user?.viewPasswordHash) 
+    })
+  } catch (error) {
+    console.error('Check view password error:', error)
+    res.status(500).json({ error: 'Failed to check view password status' })
   }
 }))
 

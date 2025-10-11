@@ -18,6 +18,8 @@ export interface User {
   email: string
   token?: string
   twoFactorEnabled?: boolean
+  role: string
+  permissions: string[]
 }
 
 interface AppState {
@@ -180,7 +182,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             console.log('👤 Parsed user:', { id: user.id, email: user.email, hasToken: !!user.token })
             
             // Validate the user object has required fields
-            if (user.id && user.email && user.token) {
+            if (user.id && user.email && user.token && user.role && user.permissions) {
               // Additional token validation - check if it looks like a JWT
               const tokenParts = user.token.split('.')
               if (tokenParts.length === 3) {
@@ -197,7 +199,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               console.warn('⚠️ Invalid user object in localStorage, clearing...', {
                 hasId: !!user.id,
                 hasEmail: !!user.email,
-                hasToken: !!user.token
+                hasToken: !!user.token,
+                hasRole: !!user.role,
+                hasPermissions: !!user.permissions
               })
               localStorage.removeItem('user')
               setAuthToken(null)
@@ -235,7 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (state.user) {
       // Only save if user has all required fields
-      if (state.user.id && state.user.email && state.user.token) {
+      if (state.user.id && state.user.email && state.user.token && state.user.role && state.user.permissions) {
         console.log('💾 Saving user to localStorage')
         try {
           localStorage.setItem('user', JSON.stringify(state.user))
@@ -248,7 +252,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn('⚠️ Attempting to save incomplete user object, skipping...', {
           hasId: !!state.user.id,
           hasEmail: !!state.user.email,
-          hasToken: !!state.user.token
+          hasToken: !!state.user.token,
+          hasRole: !!state.user.role,
+          hasPermissions: !!state.user.permissions
         })
       }
     } else {

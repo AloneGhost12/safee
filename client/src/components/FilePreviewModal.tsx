@@ -36,6 +36,7 @@ interface FilePreviewModalProps {
   }
   onDownload: () => void
   loading?: boolean
+  userRole?: string // Add user role to control download visibility
 }
 
 // PDF Preview Component with multiple fallback options

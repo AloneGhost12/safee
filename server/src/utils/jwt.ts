@@ -16,9 +16,19 @@ export function signRefresh(payload: object, expiresIn?: string) {
 }
 
 export function verifyAccess(token: string) {
-  return jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'dev_access_secret')
+  try {
+    return jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'dev_access_secret')
+  } catch (error) {
+    console.log('❌ JWT verifyAccess failed:', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
 }
 
 export function verifyRefresh(token: string) {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret')
+  try {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret')
+  } catch (error) {
+    console.log('❌ JWT verifyRefresh failed:', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
 }
