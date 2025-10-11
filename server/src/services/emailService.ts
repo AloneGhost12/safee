@@ -29,7 +29,7 @@ export interface EmailServiceResult {
  * Real SMTP integration for production use
  */
 export class BrevoEmailService implements EmailService {
-  private transporter: nodemailer.Transporter
+  private transporter!: nodemailer.Transporter
   private auditLogger: AuditLogger
   private connectionVerified: boolean = false
   private retryCount: number = 0
@@ -60,9 +60,6 @@ export class BrevoEmailService implements EmailService {
       pool: true,
       maxConnections: isProduction ? 3 : 5,
       maxMessages: isProduction ? 50 : 100,
-      // Retry configuration
-      retryDelay: 5000, // 5 seconds between retries
-      maxRetries: 3,
       // TLS configuration for production
       tls: {
         ciphers: 'SSLv3',
