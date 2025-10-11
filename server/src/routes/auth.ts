@@ -515,8 +515,8 @@ router.post('/verify-emergency', validateInput(z.object({
           id: user._id!.toHexString(),
           email: user.email,
           twoFactorEnabled: true,
-          role: user.loginRole || UserRole.ADMIN,
-          permissions: getUserPermissions(user.loginRole || UserRole.ADMIN)
+          role: user.userRole || UserRole.ADMIN,
+          permissions: getUserPermissions(user.userRole || UserRole.ADMIN)
         }
       })
     }
@@ -557,8 +557,8 @@ router.post('/verify-emergency', validateInput(z.object({
         email: user.email,
         username: user.username,
         twoFactorEnabled: user.twoFactorEnabled || false,
-        role: user.loginRole || UserRole.ADMIN,
-        permissions: getUserPermissions(user.loginRole || UserRole.ADMIN)
+        role: user.userRole || UserRole.ADMIN,
+        permissions: getUserPermissions(user.userRole || UserRole.ADMIN)
       }
     })
     
