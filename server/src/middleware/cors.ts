@@ -40,13 +40,28 @@ export function setupSecureCORS() {
         return callback(null, true)
       }
 
+      // Mobile app specific origins
+      const mobileOrigins = [
+        'capacitor://localhost',
+        'ionic://localhost',
+        'file://',
+        'http://localhost',
+        'https://localhost'
+      ]
+      
+      if (origin && mobileOrigins.some(mobileOrigin => origin.startsWith(mobileOrigin))) {
+        return callback(null, true)
+      }
+
       // Special handling for development
       if (process.env.NODE_ENV === 'development') {
         // Allow localhost with any port for development
         if (origin && (
           origin.startsWith('http://localhost:') ||
           origin.startsWith('http://127.0.0.1:') ||
-          origin.startsWith('http://[::1]:')
+          origin.startsWith('http://[::1]:') ||
+          origin.startsWith('https://localhost:') ||
+          origin.startsWith('https://127.0.0.1:')
         )) {
           return callback(null, true)
         }
