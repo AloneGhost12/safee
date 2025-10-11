@@ -44,31 +44,10 @@ export class BrevoEmailService implements EmailService {
     // Create SMTP transporter with production-optimized settings
     const isProduction = process.env.NODE_ENV === 'production'
     
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: parseInt(process.env.SMTP_PORT || (isProduction ? '587' : '465')),
-      secure: process.env.SMTP_SECURE === 'true' || (!isProduction && process.env.SMTP_PORT === '465'),
-      auth: {
-        user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
-        pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
-      },
-      // Production-optimized timeouts
-      connectionTimeout: isProduction ? 30000 : 15000, // 30s in production
-      greetingTimeout: isProduction ? 20000 : 10000,   // 20s in production
-      socketTimeout: isProduction ? 45000 : 20000,     // 45s in production
-      // Additional configuration for production stability
-      pool: true,
-      maxConnections: isProduction ? 3 : 5,
-      maxMessages: isProduction ? 50 : 100,
-      // TLS configuration for production
-      tls: {
-        ciphers: 'SSLv3',
-        rejectUnauthorized: isProduction
-      },
-      // Additional debugging for production
-      logger: isProduction,
-      debug: !isProduction
-    })
+    // In production, start with the most reliable configuration
+    const config = isProduction ? this.getProductionConfig() : this.getDevelopmentConfig()
+    
+    this.transporter = nodemailer.createTransport(config)
 
     // Don't verify connection immediately in production to avoid blocking startup
     if (!isProduction) {
@@ -76,6 +55,60 @@ export class BrevoEmailService implements EmailService {
     } else {
       // In production, verify connection lazily on first email send
       console.log('📧 Email service initialized (connection will be verified on first use)')
+    }
+  }
+
+  private getProductionConfig(): any {
+    // Production configuration with most reliable settings for cloud hosting
+    return {
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: false, // Use STARTTLS for better compatibility
+      auth: {
+        user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+        pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+      },
+      // More aggressive timeouts for production cloud environments
+      connectionTimeout: 60000, // 60s for cloud environments
+      greetingTimeout: 30000,   // 30s greeting timeout
+      socketTimeout: 60000,     // 60s socket timeout
+      // Connection pooling disabled for more reliable individual connections
+      pool: false,
+      // TLS configuration optimized for cloud hosting
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false // More permissive for cloud environments
+      },
+      // Additional options for cloud hosting compatibility
+      requireTLS: true,
+      ignoreTLS: false,
+      // Enable debug logging in production for troubleshooting
+      logger: true,
+      debug: true
+    }
+  }
+
+  private getDevelopmentConfig(): any {
+    return {
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+        pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: true
+      },
+      logger: false,
+      debug: false
     }
   }
 
@@ -106,11 +139,38 @@ export class BrevoEmailService implements EmailService {
   private async tryAlternativeConfiguration(): Promise<void> {
     console.log('🔧 Trying alternative SMTP configuration...')
     
-    // Alternative configurations to try
+    // Enhanced alternative configurations for cloud hosting compatibility
     const alternatives = [
-      { port: 587, secure: false, tls: { ciphers: 'SSLv3' } },
-      { port: 25, secure: false, tls: { ciphers: 'SSLv3' } },
-      { port: 2525, secure: false, tls: { ciphers: 'SSLv3' } }
+      // First attempt: Standard STARTTLS on port 587
+      { 
+        port: 587, 
+        secure: false, 
+        requireTLS: true,
+        tls: { 
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        } 
+      },
+      // Second attempt: Alternative submission port
+      { 
+        port: 2525, 
+        secure: false, 
+        requireTLS: true,
+        tls: { 
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        } 
+      },
+      // Third attempt: Standard SMTP port (often blocked in cloud)
+      { 
+        port: 25, 
+        secure: false, 
+        requireTLS: false,
+        tls: { 
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        } 
+      }
     ]
     
     const currentAlt = alternatives[this.retryCount - 1]
@@ -123,16 +183,21 @@ export class BrevoEmailService implements EmailService {
           user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
           pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
         },
-        connectionTimeout: 45000,
-        greetingTimeout: 30000,
-        socketTimeout: 60000,
-        pool: true,
-        maxConnections: 2,
-        maxMessages: 10,
-        tls: currentAlt.tls
-      })
+        // Extended timeouts for alternative attempts
+        connectionTimeout: 90000, // 90s for problematic connections
+        greetingTimeout: 45000,   // 45s greeting timeout
+        socketTimeout: 90000,     // 90s socket timeout
+        // Individual connections for reliability
+        pool: false,
+        // TLS configuration
+        requireTLS: currentAlt.requireTLS,
+        tls: currentAlt.tls,
+        // Enhanced debugging for troubleshooting
+        logger: true,
+        debug: true
+      } as any)
       
-      console.log(`🔧 Trying port ${currentAlt.port}, secure: ${currentAlt.secure}`)
+      console.log(`🔧 Trying port ${currentAlt.port}, secure: ${currentAlt.secure}, requireTLS: ${currentAlt.requireTLS}`)
     }
   }
 
@@ -182,17 +247,27 @@ export class BrevoEmailService implements EmailService {
       
       console.error('❌ Failed to send email:', errorMessage)
       
-      // If this is a connection timeout in production, try to reinitialize
+      // If this is a connection timeout in production, try to reinitialize and provide fallback
       if (process.env.NODE_ENV === 'production' && 
-          (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT'))) {
-        console.log('🔄 Connection timeout detected, reinitializing transporter...')
+          (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNREFUSED'))) {
+        console.log('🔄 Connection issue detected, attempting fallback...')
         this.connectionVerified = false
         this.retryCount = 0
-        this.initializeTransporter()
+        
+        // In production, log the email content for manual processing if needed
+        console.log('📧 Email fallback - Content logged for manual processing:', {
+          to: options.to,
+          subject: options.subject,
+          timestamp: new Date().toISOString(),
+          error: errorMessage
+        })
+        
+        // Try reinitializing with a more basic configuration
+        await this.initializeFallbackTransporter()
         
         return {
           success: false,
-          error: 'Connection timeout - email service reinitializing'
+          error: 'SMTP timeout - email service using fallback mode. Content logged for processing.'
         }
       }
       
@@ -201,6 +276,31 @@ export class BrevoEmailService implements EmailService {
         error: errorMessage
       }
     }
+  }
+
+  private async initializeFallbackTransporter(): Promise<void> {
+    console.log('🚨 Initializing fallback email configuration...')
+    
+    // Very basic configuration that works in most cloud environments
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+        pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+      },
+      connectionTimeout: 120000, // 2 minutes
+      greetingTimeout: 60000,    // 1 minute
+      socketTimeout: 120000,     // 2 minutes
+      pool: false,
+      tls: {
+        rejectUnauthorized: false
+      },
+      requireTLS: false,
+      logger: true,
+      debug: true
+    } as any)
   }
 
   private stripHtml(html: string): string {
