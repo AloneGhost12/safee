@@ -12,6 +12,7 @@ import hiddenAdminRoutes from './routes/hiddenAdmin'
 import healthRoutes from './routes/health'
 import notesRoutes from './routes/notes'
 import filesRoutes from './routes/files'
+import otpRoutes from './routes/otp'
 import testRoutes, { initializeTestRunner } from './utils/testRunner'
 import { httpLogger } from './middleware/logger'
 import { errorHandler, notFoundHandler } from './middleware/errors'
@@ -85,7 +86,234 @@ app.use('/api/admin', hiddenAdminRoutes)
 app.use('/api', healthRoutes)
 app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)
+app.use('/api/otp', otpRoutes)
 app.use('/api/test', testRoutes)
+
+// Testing dashboard
+app.get('/testing', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Vault Testing Dashboard</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+                color: #333;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                padding: 20px;
+            }
+            .header {
+                border-bottom: 1px solid #eee;
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                margin: 0;
+                color: #2c3e50;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .status {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+                color: white;
+                background-color: #27ae60;
+            }
+            .section {
+                margin-bottom: 30px;
+                padding: 20px;
+                border: 1px solid #eee;
+                border-radius: 6px;
+                background: #fafafa;
+            }
+            .section h2 {
+                margin-top: 0;
+                color: #34495e;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 10px;
+            }
+            .endpoint {
+                background: white;
+                padding: 15px;
+                border-radius: 4px;
+                margin-bottom: 10px;
+                border-left: 4px solid #3498db;
+            }
+            .method {
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-size: 12px;
+                font-weight: bold;
+                color: white;
+                margin-right: 10px;
+            }
+            .get { background-color: #27ae60; }
+            .post { background-color: #e74c3c; }
+            .put { background-color: #f39c12; }
+            .delete { background-color: #c0392b; }
+            .test-btn {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-left: 10px;
+            }
+            .test-btn:hover {
+                background: #2980b9;
+            }
+            .result {
+                margin-top: 10px;
+                padding: 10px;
+                border-radius: 4px;
+                background: #ecf0f1;
+                font-family: monospace;
+                font-size: 12px;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+            .success { background-color: #d5f4e6; color: #27ae60; }
+            .error { background-color: #fadbd8; color: #e74c3c; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🧪 Vault Testing Dashboard <span class="status">ACTIVE</span></h1>
+                <p>Test your Vault API endpoints and verify system functionality</p>
+            </div>
+            
+            <div class="section">
+                <h2>🔒 Email OTP System</h2>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/otp/config</code>
+                    <button class="test-btn" onclick="testEndpoint('GET', '/api/otp/config')">Test</button>
+                    <div id="result-otp-config" class="result" style="display:none;"></div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <code>/api/otp/test-email</code>
+                    <button class="test-btn" onclick="testOTPEmail()">Test Email</button>
+                    <div id="result-otp-email" class="result" style="display:none;"></div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <code>/api/otp/send</code>
+                    <button class="test-btn" onclick="testOTPSend()">Send OTP</button>
+                    <div id="result-otp-send" class="result" style="display:none;"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🏥 System Health</h2>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/health</code>
+                    <button class="test-btn" onclick="testEndpoint('GET', '/api/health')">Test</button>
+                    <div id="result-health" class="result" style="display:none;"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔐 Authentication</h2>
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <code>/api/auth/register</code>
+                    <button class="test-btn" onclick="alert('Use Postman or curl for auth testing')">Manual Test</button>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <code>/api/auth/login</code>
+                    <button class="test-btn" onclick="alert('Use Postman or curl for auth testing')">Manual Test</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            async function testEndpoint(method, url, body = null) {
+                const resultId = 'result-' + url.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                const resultDiv = document.getElementById(resultId) || document.getElementById('result-' + url.split('/').pop());
+                
+                if (resultDiv) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = 'Testing...';
+                    resultDiv.className = 'result';
+                }
+                
+                try {
+                    const options = {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    };
+                    
+                    if (body) {
+                        options.body = JSON.stringify(body);
+                    }
+                    
+                    const response = await fetch(url, options);
+                    const data = await response.text();
+                    
+                    if (resultDiv) {
+                        resultDiv.className = response.ok ? 'result success' : 'result error';
+                        resultDiv.innerHTML = \`Status: \${response.status}\\n\\n\${data}\`;
+                    }
+                } catch (error) {
+                    if (resultDiv) {
+                        resultDiv.className = 'result error';
+                        resultDiv.innerHTML = \`Error: \${error.message}\`;
+                    }
+                }
+            }
+            
+            function testOTPEmail() {
+                const email = prompt('Enter email address for test:', 'test@example.com');
+                if (email) {
+                    testEndpoint('POST', '/api/otp/test-email', { email: email });
+                }
+            }
+            
+            function testOTPSend() {
+                const email = prompt('Enter email address for OTP:', 'test@example.com');
+                if (email) {
+                    testEndpoint('POST', '/api/otp/send', { 
+                        email: email, 
+                        purpose: 'email_verification' 
+                    });
+                }
+            }
+            
+            // Auto-refresh page every 30 seconds to keep it updated
+            setTimeout(() => location.reload(), 30000);
+        </script>
+    </body>
+    </html>
+  `)
+})
 
 // Root endpoint - API documentation
 app.get('/', (req, res) => {

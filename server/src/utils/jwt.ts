@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-const ACCESS_EXPIRES_IN = '1h'
+const ACCESS_EXPIRES_IN = '4h'
 const REFRESH_EXPIRES_IN = '7d'
 
 export function signAccess(payload: object, expiresIn?: string) {

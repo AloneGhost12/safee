@@ -62,6 +62,11 @@ export const adminHoneypot = (req: Request, res: Response, next: NextFunction) =
     '/admin/login', '/admin/panel', '/adminpanel'
   ]
   
+  // Don't trigger honeypot for our hidden admin routes
+  if (req.path.includes('/api/admin/hidden/')) {
+    return next()
+  }
+  
   if (suspiciousPaths.some(path => req.path.toLowerCase().includes(path))) {
     // Log potential attack
     const auditLogger = AuditLogger.getInstance()
