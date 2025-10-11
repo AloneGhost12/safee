@@ -2,6 +2,7 @@ import { User, usersCollection } from '../models/user'
 import { ObjectId } from 'mongodb'
 import { getClientIP } from '../middleware/security'
 import { Request } from 'express'
+import { getEmailService, EmailService } from '../services/emailService'
 
 export interface SecurityEvent {
   eventType: 'login_success' | 'login_failure' | 'password_change' | 'unusual_activity' | 'account_locked' | 'account_unlocked'
@@ -104,12 +105,11 @@ export class SecurityManager {
 
       // Send account lockout alert email
       try {
-        const { getEmailService } = await import('../services/emailService')
         const emailService = getEmailService()
         await emailService.sendAccountLockoutAlert(
           user.email,
           user.username,
-          this.LOCKOUT_DURATION_MINUTES,
+          this.getLockoutDurationMinutes(),
           clientInfo
         )
       } catch (emailError) {
