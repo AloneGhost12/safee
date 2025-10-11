@@ -1,0 +1,25 @@
+name: Keep Server Alive
+
+on:
+  schedule:
+    # Ping every 14 minutes (cron: minute hour day month weekday)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping Render Server
+        run: |
+          echo "Pinging server at $(date)"
+          curl -f https://your-app-name.onrender.com/api/health || echo "Ping failed"
+          echo "Ping completed"
+        
+      - name: Ping Alternative Endpoints
+        run: |
+          # Ping multiple endpoints to ensure server stays awake
+          curl -f https://your-app-name.onrender.com/ || echo "Root ping failed"
+          sleep 5
+          curl -f https://your-app-name.onrender.com/api/health || echo "Health ping failed"

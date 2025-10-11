@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tridex Server Keep-Alive</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .online { background: #d4edda; color: #155724; }
+        .offline { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Tridex Server Keep-Alive</h1>
+        <p>Keep your server awake by automatically pinging it every 14 minutes.</p>
+        
+        <div>
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" placeholder="https://your-app-name.onrender.com" style="width: 100%; padding: 8px; margin: 10px 0;">
+        </div>
+        
+        <div id="status" class="status warning">⏸️ Not started</div>
+        
+        <div>
+            <button onclick="startKeepAlive()">Start Keep-Alive</button>
+            <button onclick="stopKeepAlive()">Stop</button>
+            <button onclick="pingNow()">Ping Now</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div class="log" id="log">Ready to start...</div>
+    </div>
+
+    <script>
+        let keepAliveInterval = null;
+        const PING_INTERVAL = 14 * 60 * 1000; // 14 minutes
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${className}`;
+        }
+        
+        async function pingServer() {
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            if (!serverUrl) {
+                log('❌ Please enter server URL');
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`${serverUrl}/api/health`, {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Ping successful - Server uptime: ${Math.floor(data.uptime)}s`);
+                    updateStatus('🟢 Server is awake', 'online');
+                    return true;
+                } else {
+                    log(`⚠️ Ping responded with status: ${response.status}`);
+                    updateStatus('🟡 Server responded with error', 'warning');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Ping failed: ${error.message}`);
+                updateStatus('🔴 Server is sleeping or unreachable', 'offline');
+                return false;
+            }
+        }
+        
+        function startKeepAlive() {
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            if (!serverUrl) {
+                alert('Please enter your server URL first');
+                return;
+            }
+            
+            if (keepAliveInterval) {
+                log('⚠️ Keep-alive already running');
+                return;
+            }
+            
+            log('🚀 Starting keep-alive service...');
+            updateStatus('🟡 Starting...', 'warning');
+            
+            // Initial ping
+            pingServer();
+            
+            // Set up interval
+            keepAliveInterval = setInterval(pingServer, PING_INTERVAL);
+            
+            log(`⏰ Will ping every ${PING_INTERVAL / 60000} minutes`);
+            updateStatus('🟢 Keep-alive active', 'online');
+            
+            // Save URL to localStorage
+            localStorage.setItem('serverUrl', serverUrl);
+        }
+        
+        function stopKeepAlive() {
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
+                log('⏹️ Keep-alive stopped');
+                updateStatus('⏸️ Stopped', 'warning');
+            }
+        }
+        
+        function pingNow() {
+            log('🏓 Manual ping triggered...');
+            pingServer();
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared');
+        }
+        
+        // Load saved URL on page load
+        window.onload = function() {
+            const savedUrl = localStorage.getItem('serverUrl');
+            if (savedUrl) {
+                document.getElementById('serverUrl').value = savedUrl;
+            }
+        };
+        
+        // Auto-start if URL is available
+        document.getElementById('serverUrl').addEventListener('input', function() {
+            localStorage.setItem('serverUrl', this.value);
+        });
+    </script>
+</body>
+</html>
