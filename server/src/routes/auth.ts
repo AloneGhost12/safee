@@ -288,11 +288,11 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
       
       // If account is now locked, return 423 status
       if (isNowLocked) {
-        const retryAfter = SecurityManager.LOCKOUT_DURATION_MINUTES * 60 // Convert to seconds
+        const retryAfter = SecurityManager.getLockoutDurationMinutes() * 60 // Convert to seconds
         return res.status(423).json({ 
           error: 'Account locked due to repeated failed login attempts',
           retryAfter,
-          lockoutMessage: `Account temporarily locked for ${SecurityManager.LOCKOUT_DURATION_MINUTES} minutes due to security policy.`
+          lockoutMessage: `Account temporarily locked for ${SecurityManager.getLockoutDurationMinutes()} minutes due to security policy.`
         })
       }
       

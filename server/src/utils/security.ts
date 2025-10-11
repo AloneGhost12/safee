@@ -21,8 +21,15 @@ export function getClientInfo(req: Request) {
 
 export class SecurityManager {
   private static readonly MAX_FAILED_ATTEMPTS = 5
-  private static readonly LOCKOUT_DURATION_MINUTES = 5
+  public static readonly LOCKOUT_DURATION_MINUTES = 5
   private static readonly UNUSUAL_ACTIVITY_THRESHOLD = 3
+
+  /**
+   * Get the lockout duration in minutes
+   */
+  static getLockoutDurationMinutes(): number {
+    return this.LOCKOUT_DURATION_MINUTES
+  }
 
   /**
    * Check if account is currently locked
@@ -94,6 +101,21 @@ export class SecurityManager {
       }
       
       updateData.$push = { securityEvents: { $each: [securityEvent, lockEvent] } }
+
+      // Send account lockout alert email
+      try {
+        const { getEmailService } = await import('../services/emailService')
+        const emailService = getEmailService()
+        await emailService.sendAccountLockoutAlert(
+          user.email,
+          user.username,
+          this.LOCKOUT_DURATION_MINUTES,
+          clientInfo
+        )
+      } catch (emailError) {
+        console.error('Failed to send account lockout alert email:', emailError)
+        // Don't throw the error - account locking should still work even if email fails
+      }
     }
 
     await col.updateOne(
