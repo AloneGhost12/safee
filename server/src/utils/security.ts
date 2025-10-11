@@ -105,7 +105,7 @@ export class SecurityManager {
 
       // Send account lockout alert email
       try {
-        const emailService = getEmailService()
+        const emailService: EmailService = getEmailService()
         await emailService.sendAccountLockoutAlert(
           user.email,
           user.username,
