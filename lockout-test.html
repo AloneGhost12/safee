@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Lockout Email Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .log { background: #fff; border: 1px solid #ddd; padding: 10px; height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Account Lockout Email Test</h1>
+    
+    <div class="container">
+        <h2>Test Configuration</h2>
+        <p><strong>Server:</strong> http://localhost:4010</p>
+        <p><strong>Test Username:</strong> testlockout</p>
+        <p><strong>Email Alert Target:</strong> gff130170@gmail.com</p>
+        <p><strong>Lockout Trigger:</strong> 5 failed login attempts</p>
+    </div>
+
+    <div class="container">
+        <h2>Test Controls</h2>
+        <button onclick="createTestAccount()">1. Create Test Account</button>
+        <button onclick="triggerLockout()">2. Trigger Account Lockout (5 Failed Logins)</button>
+        <button onclick="verifyLockout()">3. Verify Account is Locked</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="container">
+        <h2>Test Log</h2>
+        <div class="log" id="testLog">Ready to test account lockout email alerts...\n</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4010/api';
+        const TEST_USER = {
+            username: 'testlockout',
+            email: 'gff130170@gmail.com',
+            phone: '+1234567890',
+            password: 'correct123',
+            wrongPassword: 'wrong123',
+            firstName: 'Test',
+            lastName: 'User'
+        };
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = 'Log cleared...\n';
+        }
+
+        async function createTestAccount() {
+            log('🔧 Creating test account...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(TEST_USER)
+                });
+
+                if (response.status === 201) {
+                    log('✅ Test account created successfully', 'success');
+                } else if (response.status === 409) {
+                    log('⚠️ Test account already exists, continuing...', 'warning');
+                } else {
+                    const errorData = await response.json();
+                    log(`❌ Failed to create account: ${errorData.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error creating account: ${error.message}`, 'error');
+            }
+        }
+
+        async function triggerLockout() {
+            log('🚨 Starting lockout test - attempting 5 failed logins...', 'info');
+            
+            for (let i = 1; i <= 5; i++) {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            identifier: TEST_USER.username,
+                            password: TEST_USER.wrongPassword
+                        })
+                    });
+
+                    if (response.status === 401) {
+                        log(`   Attempt ${i}/5: ❌ Invalid credentials (expected)`, 'info');
+                    } else if (response.status === 423) {
+                        log(`   Attempt ${i}/5: 🔒 Account locked! (Status: ${response.status})`, 'warning');
+                        log('📧 Email alert should have been sent!', 'success');
+                        break;
+                    } else {
+                        const errorData = await response.json();
+                        log(`   Attempt ${i}/5: ⚠️ Unexpected response: ${response.status} - ${errorData.message}`, 'warning');
+                    }
+                } catch (error) {
+                    log(`   Attempt ${i}/5: ❌ Request failed: ${error.message}`, 'error');
+                }
+                
+                // Small delay between attempts
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            log('🎯 Lockout test completed! Check your email: gff130170@gmail.com', 'success');
+        }
+
+        async function verifyLockout() {
+            log('🔍 Verifying account lockout status...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        identifier: TEST_USER.username,
+                        password: TEST_USER.password // Using CORRECT password
+                    })
+                });
+
+                if (response.status === 423) {
+                    log('✅ Account is properly locked (Status 423)', 'success');
+                    log('📧 Security alert email should be in your inbox!', 'success');
+                } else if (response.status === 200) {
+                    log('❌ Account should be locked but login succeeded!', 'error');
+                } else {
+                    const errorData = await response.json();
+                    log(`⚠️ Unexpected verification response: ${response.status} - ${errorData.message}`, 'warning');
+                }
+            } catch (error) {
+                log(`❌ Verification failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Log initial state
+        log('🚀 Account Lockout Email Test Ready', 'success');
+        log('📧 Email alerts will be sent to: gff130170@gmail.com', 'info');
+        log('🎯 Follow the steps in order: Create Account → Trigger Lockout → Verify', 'info');
+    </script>
+</body>
+</html>
