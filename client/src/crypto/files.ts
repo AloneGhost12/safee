@@ -367,7 +367,7 @@ export function validateFileForUpload(file: File): void {
     throw new Error(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`)
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (file.type && !ALLOWED_TYPES.includes(file.type)) {
     throw new Error(`File type ${file.type} is not allowed`)
   }
 

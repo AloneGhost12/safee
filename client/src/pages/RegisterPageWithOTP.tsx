@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { authAPI } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
 import { Eye, EyeOff, Lock, Mail, UserPlus, User, Phone, Shield } from 'lucide-react'
 
-export function RegisterPage() {
+export function RegisterPageWithOTP() {
   const [step, setStep] = useState<'register' | 'verify-email'>('register')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -19,7 +19,6 @@ export function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   
   const { dispatch } = useApp()
   const navigate = useNavigate()
@@ -78,7 +77,7 @@ export function RegisterPage() {
     return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const validationError = validateForm()
@@ -87,10 +86,9 @@ export function RegisterPage() {
       return
     }
 
-    // Move to email verification step
+    // Move to email verification step first
     setStep('verify-email')
     setError('')
-    setSuccessMessage('Please verify your email address to complete registration')
   }
 
   const handleEmailVerified = async () => {
@@ -126,7 +124,6 @@ export function RegisterPage() {
   const handleBackToRegister = () => {
     setStep('register')
     setError('')
-    setSuccessMessage('')
   }
 
   if (step === 'verify-email') {
@@ -143,12 +140,6 @@ export function RegisterPage() {
             description="We've sent a verification code to complete your registration"
             autoSend={true}
           />
-          
-          {successMessage && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded-md text-sm">
-              {successMessage}
-            </div>
-          )}
           
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
@@ -180,139 +171,11 @@ export function RegisterPage() {
             Create your secure vault
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Email verification required for security
+            Enhanced security with email verification
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
-  
-  const { dispatch } = useApp()
-  const navigate = useNavigate()
-
-  // Password strength validation
-  const getPasswordStrength = (pwd: string) => {
-    const checks = {
-      length: pwd.length >= 8,
-      lowercase: /(?=.*[a-z])/.test(pwd),
-      uppercase: /(?=.*[A-Z])/.test(pwd),
-      number: /(?=.*\d)/.test(pwd)
-    }
-    return checks
-  }
-
-  const passwordChecks = getPasswordStrength(password)
-
-  const validateForm = () => {
-    if (!username || !email || !phoneNumber || !password || !confirmPassword) {
-      return 'Please fill in all fields'
-    }
-    
-    if (username.length < 3) {
-      return 'Username must be at least 3 characters long'
-    }
-    
-    if (password.length < 8) {
-      return 'Password must be at least 8 characters long'
-    }
-    
-    // Check password complexity requirements
-    if (!/(?=.*[a-z])/.test(password)) {
-      return 'Password must contain at least one lowercase letter'
-    }
-    
-    if (!/(?=.*[A-Z])/.test(password)) {
-      return 'Password must contain at least one uppercase letter'
-    }
-    
-    if (!/(?=.*\d)/.test(password)) {
-      return 'Password must contain at least one number'
-    }
-    
-    if (password !== confirmPassword) {
-      return 'Passwords do not match'
-    }
-    
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return 'Please enter a valid email address'
-    }
-    
-    if (!/^\+?[\d\s\-\(\)]+$/.test(phoneNumber)) {
-      return 'Please enter a valid phone number'
-    }
-    
-    return null
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-
-    // Move to email verification step
-    setStep('verify-email')
-    setError('')
-    setSuccessMessage('Please verify your email address to complete registration')
-  }
-
-  const handleEmailVerified = async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const response = await authAPI.signup(username, email, phoneNumber, password)
-      
-      // Store user info with token
-      const user = { 
-        id: response.user?.id || 'user-id', 
-        email, 
-        username,
-        token: response.access 
-      }
-      dispatch({ type: 'SET_USER', payload: user })
-      
-      navigate('/vault')
-    } catch (err: any) {
-      setError(err.message || 'Registration failed')
-      // Go back to registration form if signup fails
-      setStep('register')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleEmailVerificationError = (error: string) => {
-    setError(error)
-  }
-
-  const handleBackToRegister = () => {
-    setStep('register')
-    setError('')
-    setSuccessMessage('')
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-xl shadow-2xl">
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-green-600 rounded-full flex items-center justify-center">
-            <UserPlus className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Create your secure vault
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Enhanced security with username, email, and phone verification
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleRegisterSubmit}>
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
               {error}
@@ -469,12 +332,21 @@ export function RegisterPage() {
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <p className="mb-2 font-semibold">Security Requirements:</p>
-            <p>• Username: Minimum 3 characters (used for emergency verification)</p>
-            <p>• Phone: Required for account recovery and unusual activity alerts</p>
-            <p>• Password: At least 8 characters with uppercase, lowercase, and number</p>
-            <p>• All fields are required for enhanced security features</p>
+          {/* Enhanced Security Notice */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="text-xs text-blue-800 dark:text-blue-200">
+                <p className="font-semibold mb-2">Enhanced Security Features:</p>
+                <ul className="space-y-1">
+                  <li>• Email verification with OTP (One-Time Password)</li>
+                  <li>• Username for emergency verification</li>
+                  <li>• Phone number for account recovery</li>
+                  <li>• Strong password requirements</li>
+                  <li>• All data encrypted client-side</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -483,7 +355,7 @@ export function RegisterPage() {
               className="w-full"
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Processing...' : 'Continue to Email Verification →'}
             </Button>
           </div>
 

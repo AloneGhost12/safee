@@ -2,7 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AppProvider, useApp } from './context/AppContext'
 import { AdminProvider } from './contexts/AdminContext'
 import { LoginPage } from './pages/LoginPage'
-import { RegisterPage } from './pages/RegisterPage'
+import { RegisterPage } from './pages/RegisterPageClean'
+import { LoginPageWithOTP } from './pages/LoginPageWithOTP'
+import { RegisterPageWithOTP } from './pages/RegisterPageWithOTP'
 import { VaultPage } from './pages/VaultPage'
 import { FilesPage } from './pages/FilesPage'
 import { TrashPage } from './pages/TrashPage'
@@ -83,10 +85,26 @@ function AppRoutes() {
         } 
       />
       <Route 
+        path="/login-advanced" 
+        element={
+          <PublicRoute>
+            <LoginPageWithOTP />
+          </PublicRoute>
+        } 
+      />
+      <Route 
         path="/register" 
         element={
           <PublicRoute>
             <RegisterPage />
+          </PublicRoute>
+        } 
+      />
+      <Route 
+        path="/register-otp" 
+        element={
+          <PublicRoute>
+            <RegisterPageWithOTP />
           </PublicRoute>
         } 
       />
