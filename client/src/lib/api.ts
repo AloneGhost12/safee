@@ -289,9 +289,19 @@ export const authAPI = {
     }),
 
   verify2FALogin: (identifier: string, password: string, code: string) =>
-    request<{ access: string; user: { id: string; email: string; twoFactorEnabled: boolean } }>('/auth/2fa/login', {
+    request<{ access: string; user: { id: string; email: string; username: string; twoFactorEnabled: boolean } }>('/auth/2fa/login', {
       method: 'POST',
       body: JSON.stringify({ identifier, password, code }),
+    }).then(result => {
+      setAuthToken(result.access)
+      return result
+    }),
+
+  // Complete email OTP login with 2FA verification
+  completeEmailLogin2FA: (email: string, code: string) =>
+    request<{ access: string; user: { id: string; email: string; username: string; twoFactorEnabled: boolean } }>('/auth/email-login-2fa', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
     }).then(result => {
       setAuthToken(result.access)
       return result
@@ -397,6 +407,89 @@ export const authAPI = {
         setAuthToken(result.access)
       }
       return result
+    }),
+}
+
+// Email OTP API
+export const emailOTPAPI = {
+  // Send OTP to email
+  sendOTP: (email: string, purpose: string = 'email_verification') =>
+    request<{ success: boolean; message: string; expiresIn: number; canResendAfter: number }>('/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    }),
+
+  // Verify OTP code
+  verifyOTP: (email: string, code: string, purpose: string = 'email_verification') =>
+    request<{ success: boolean; message: string; sessionId?: string }>('/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, purpose }),
+    }),
+
+  // Resend OTP
+  resendOTP: (email: string, purpose: string = 'email_verification') =>
+    request<{ success: boolean; message: string; expiresIn: number; canResendAfter: number }>('/otp/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    }),
+
+  // Get OTP configuration
+  getConfig: () =>
+    request<{ 
+      expirationMinutes: number; 
+      maxAttempts: number; 
+      resendDelaySeconds: number;
+      dailyLimit: number;
+    }>('/otp/config'),
+
+  // Get OTP status for email
+  getStatus: (email: string, purpose: string = 'email_verification') =>
+    request<{
+      hasActivateOTP: boolean;
+      attemptsRemaining: number;
+      canResend: boolean;
+      nextResendTime?: number;
+      expiresAt?: number;
+    }>('/otp/status', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    }),
+
+  // Test email functionality (for admin/testing)
+  testEmail: (email: string) =>
+    request<{ success: boolean; messageId?: string; error?: string }>('/otp/test-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  // Verify account exists for email login
+  verifyAccountExists: (email: string) =>
+    request<{ exists: boolean; username?: string }>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  // Check if registration data is available (before email verification)
+  checkRegistrationData: (username: string, email: string, phoneNumber: string) =>
+    request<{ 
+      available: boolean; 
+      conflictType?: 'email' | 'username' | 'phoneNumber';
+      error?: string;
+      message?: string;
+    }>('/auth/check-registration', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, phoneNumber }),
+    }),
+
+  // Complete email-based login after OTP verification
+  completeEmailLogin: (email: string) =>
+    request<{ 
+      access: string; 
+      user: { id: string; email: string; username: string; twoFactorEnabled?: boolean; }
+      requires2FA?: boolean;
+    }>('/auth/email-login', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
     }),
 }
 

@@ -4,19 +4,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AccountLockoutWarning } from '@/components/AccountLockoutWarning'
-import { authAPI } from '@/lib/api'
+import { EmailOTPVerification } from '@/components/EmailOTPVerification'
+import { authAPI, emailOTPAPI } from '@/lib/api'
 import { useApp } from '@/context/AppContext'
-import { Eye, EyeOff, Lock, Mail, Shield, Key } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Shield, Key, Smartphone } from 'lucide-react'
 
 export function LoginPage() {
+  const [loginMethod, setLoginMethod] = useState<'normal' | 'email-otp'>('normal')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [email, setEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [requires2FA, setRequires2FA] = useState(false)
   const [requiresEmergencyVerification, setRequiresEmergencyVerification] = useState(false)
+  const [showEmailOTP, setShowEmailOTP] = useState(false)
   const [useBackupCode, setUseBackupCode] = useState(false)
   const [backupCode, setBackupCode] = useState('')
   const [accountLocked, setAccountLocked] = useState(false)
@@ -32,6 +36,76 @@ export function LoginPage() {
   const handleRetryAfterCooldown = () => {
     setAccountLocked(false)
     setLockoutTimeRemaining(0)
+    setError('')
+  }
+
+  const handleEmailOTPLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!email) {
+      setError('Please enter your email address')
+      return
+    }
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    // Check if account exists and initiate email OTP
+    try {
+      // Verify account exists before sending OTP
+      await emailOTPAPI.verifyAccountExists(email)
+      setShowEmailOTP(true)
+      setError('')
+    } catch (err: any) {
+      if (err.status === 404) {
+        setError('No account found with this email address')
+      } else {
+        setError(err.message || 'Failed to initiate email login')
+      }
+    }
+  }
+
+  const handleEmailOTPVerified = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      // Complete email OTP login
+      const response = await emailOTPAPI.completeEmailLogin(email)
+      
+      // Check if 2FA is still required after email verification
+      if (response.requires2FA) {
+        setRequires2FA(true)
+        setShowEmailOTP(false)
+        setError('')
+        setLoading(false)
+        return
+      }
+      
+      const user = { 
+        id: response.user?.id || 'user-email-verified', 
+        email,
+        username: response.user?.username || email.split('@')[0],
+        token: response.access || 'email-otp-token-' + Date.now()
+      }
+      dispatch({ type: 'SET_USER', payload: user })
+      navigate('/vault')
+    } catch (err: any) {
+      setError(err.message || 'Email login failed')
+      setShowEmailOTP(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEmailOTPError = (error: string) => {
+    setError(error)
+  }
+
+  const handleBackFromEmailOTP = () => {
+    setShowEmailOTP(false)
     setError('')
   }
 
@@ -167,12 +241,20 @@ export function LoginPage() {
         setError('')
 
         try {
-          // Verify 2FA code
-          const response = await authAPI.verify2FALogin(identifier, password, twoFactorCode)
+          // Verify 2FA code - use different endpoints based on login method
+          let response
+          if (showEmailOTP || loginMethod === 'email-otp') {
+            // Email OTP flow - only need email and 2FA code
+            response = await authAPI.completeEmailLogin2FA(email, twoFactorCode)
+          } else {
+            // Regular login flow - need identifier, password, and 2FA code
+            response = await authAPI.verify2FALogin(identifier, password, twoFactorCode)
+          }
           
           const user = { 
             id: response.user?.id || 'user-id', 
-            email: identifier, 
+            email: showEmailOTP || loginMethod === 'email-otp' ? email : identifier, 
+            username: response.user?.username || (showEmailOTP || loginMethod === 'email-otp' ? email.split('@')[0] : identifier),
             token: response.access,
             twoFactorEnabled: true
           }
@@ -192,17 +274,87 @@ export function LoginPage() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-xl shadow-2xl">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-            <Lock className="h-8 w-8 text-white" />
+            {loginMethod === 'email-otp' ? <Mail className="h-8 w-8 text-white" /> : <Lock className="h-8 w-8 text-white" />}
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
             Sign in to your vault
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Secure notes, encrypted client-side
+            {loginMethod === 'email-otp' ? 'Login with email verification' : 'Secure notes, encrypted client-side'}
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {/* Login Method Toggle */}
+        {!requires2FA && !requiresEmergencyVerification && !showEmailOTP && (
+          <div className="flex space-x-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMethod('normal')
+                setError('')
+                setEmail('')
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                loginMethod === 'normal'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Lock className="h-4 w-4 inline mr-2" />
+              Password
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMethod('email-otp')
+                setError('')
+                setIdentifier('')
+                setPassword('')
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                loginMethod === 'email-otp'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Smartphone className="h-4 w-4 inline mr-2" />
+              Login with OTP
+            </button>
+          </div>
+        )}
+
+        {/* Email OTP Verification Section */}
+        {showEmailOTP && (
+          <div className="mt-8 space-y-6">
+            <EmailOTPVerification
+              email={email}
+              purpose="login"
+              onVerified={handleEmailOTPVerified}
+              onError={handleEmailOTPError}
+              onBack={handleBackFromEmailOTP}
+              title="Verify Email Login"
+              description="Enter the verification code sent to your email"
+              autoSend={true}
+            />
+            
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
+            {loading && (
+              <div className="text-center">
+                <div className="inline-flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Signing you in...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <form className="mt-8 space-y-6" onSubmit={loginMethod === 'email-otp' ? handleEmailOTPLogin : handleSubmit}>
           {/* Account Lockout Warning */}
           <AccountLockoutWarning 
             lockoutTimeRemaining={lockoutTimeRemaining}
@@ -216,61 +368,87 @@ export function LoginPage() {
           )}
 
           <div className="space-y-4">
-            {!requires2FA && !requiresEmergencyVerification ? (
-              <>
+            {!requires2FA && !requiresEmergencyVerification && !showEmailOTP ? (
+              loginMethod === 'email-otp' ? (
                 <div>
-                  <Label htmlFor="identifier" className="sr-only">
-                    Username, Email, or Phone
+                  <Label htmlFor="email" className="sr-only">
+                    Email address
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <Input
-                      id="identifier"
-                      type="text"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
-                      placeholder="Username, Email, or Phone"
+                      placeholder="Enter your email address"
                       required
-                      autoComplete="username"
+                      autoComplete="email"
                       disabled={loading}
                     />
                   </div>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    We'll send a verification code to your email
+                  </p>
                 </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="identifier" className="sr-only">
+                      Username, Email, or Phone
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <Input
+                        id="identifier"
+                        type="text"
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        className="pl-10"
+                        placeholder="Username, Email, or Phone"
+                        required
+                        autoComplete="username"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
 
-                <div>
-                  <Label htmlFor="password" className="sr-only">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                      placeholder="Password"
-                      required
-                      autoComplete="current-password"
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </button>
+                  <div>
+                    <Label htmlFor="password" className="sr-only">
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                        placeholder="Password"
+                        required
+                        autoComplete="current-password"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </>
-            ) : useBackupCode ? (
+                </>
+              )
+            ) : requires2FA && !showEmailOTP ? (
+              useBackupCode ? (
               <div>
                 <Label htmlFor="backupCode" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                   Backup Code
@@ -317,8 +495,9 @@ export function LoginPage() {
                   Enter the 6-digit code from your authenticator app
                 </p>
               </div>
-            )}
-          </div>
+            )
+          ) : null}
+        </div>
 
           {/* Emergency Verification Section */}
           {requiresEmergencyVerification && (
@@ -397,17 +576,23 @@ export function LoginPage() {
             </div>
           )}
 
-          <div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading || accountLocked}
-            >
-              {loading ? 'Verifying...' : requiresEmergencyVerification ? 'Verify Identity' : requires2FA ? 'Verify & Sign In' : 'Sign in'}
-            </Button>
-          </div>
+          {!showEmailOTP && (
+            <div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || accountLocked}
+              >
+                {loading ? 'Processing...' : 
+                 requiresEmergencyVerification ? 'Verify Identity' : 
+                 requires2FA ? 'Verify & Sign In' : 
+                 loginMethod === 'email-otp' ? 'Send Verification Code' : 
+                 'Sign in'}
+              </Button>
+            </div>
+          )}
 
-          {requires2FA && (
+          {requires2FA && !showEmailOTP && (
             <div className="space-y-2">
               <Button
                 type="button"

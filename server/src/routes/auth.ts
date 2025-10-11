@@ -286,11 +286,18 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
         ...clientInfo
       })
       
-      return res.status(401).json({ 
-        error: 'Invalid credentials',
-        ...(isNowLocked && { 
-          lockoutMessage: 'Account locked due to repeated failed attempts. Try again after some time.' 
+      // If account is now locked, return 423 status
+      if (isNowLocked) {
+        const retryAfter = SecurityManager.LOCKOUT_DURATION_MINUTES * 60 // Convert to seconds
+        return res.status(423).json({ 
+          error: 'Account locked due to repeated failed login attempts',
+          retryAfter,
+          lockoutMessage: `Account temporarily locked for ${SecurityManager.LOCKOUT_DURATION_MINUTES} minutes due to security policy.`
         })
+      }
+      
+      return res.status(401).json({ 
+        error: 'Invalid credentials'
       })
     }
     
@@ -382,6 +389,7 @@ router.post('/login', loginRateLimit, validateInput(loginSchema), asyncHandler(a
       failureReason: 'Internal error',
       ...clientInfo
     })
+    console.error('Login error:', error)
     throw error
   }
 }))
@@ -697,6 +705,7 @@ router.post('/2fa/login', validateInput(z.object({
       user: {
         id,
         email: user.email,
+        username: user.username,
         twoFactorEnabled: true
       }
     })
@@ -844,6 +853,7 @@ router.post('/2fa/disable', requireAuth, asyncHandler(async (req: AuthedRequest,
     return res.status(404).json({ error: 'User not found' })
   }
   
+  // Completely disable 2FA and remove all related data
   await col.updateOne(
     { _id: user._id }, 
     { 
@@ -851,7 +861,8 @@ router.post('/2fa/disable', requireAuth, asyncHandler(async (req: AuthedRequest,
         totpSecret: '',
         totpTempSecret: '',
         backupCodes: '',
-        backupCodesGenerated: ''
+        backupCodesGenerated: '',
+        twoFactorEnabledAt: ''
       },
       $set: {
         twoFactorEnabled: false,
@@ -867,7 +878,10 @@ router.post('/2fa/disable', requireAuth, asyncHandler(async (req: AuthedRequest,
     ...clientInfo
   })
   
-  res.json({ ok: true })
+  res.json({ 
+    ok: true,
+    message: '2FA has been completely disabled. You can now login with email OTP only.'
+  })
 }))
 
 // Backup codes management
@@ -1413,6 +1427,380 @@ router.post('/recovery/verify-questions', validateInput(verifySecurityQuestionsS
 router.post('/recovery/cleanup', asyncHandler(async (req: Request, res: Response) => {
   await cleanupExpiredRecoveryCodes()
   res.json({ success: true, message: 'Cleanup completed.' })
+}))
+
+// Complete email-based login after OTP verification
+router.post('/email-login', validateInput(z.object({
+  email: validationSchemas.email
+})), asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne({ email })
+    
+    if (!user) {
+      await auditLogger.logAuth({
+        action: 'login_failure',
+        email,
+        success: false,
+        failureReason: 'Account not found',
+        ...clientInfo
+      })
+      return res.status(404).json({ 
+        error: 'No account found with this email address' 
+      })
+    }
+
+    // Check if user has 2FA enabled and if it's still required
+    // Note: We double-check that 2FA is actually enabled since the user might have just disabled it
+    if (user.twoFactorEnabled === true && user.totpSecret) {
+      await auditLogger.logAuth({
+        action: 'login_attempt',
+        userId: user._id!.toHexString(),
+        email,
+        success: false,
+        failureReason: '2FA required after email verification',
+        ...clientInfo
+      })
+      
+      return res.json({ 
+        requires2FA: true,
+        user: {
+          id: user._id!.toHexString(),
+          email: user.email,
+          twoFactorEnabled: true
+        }
+      })
+    }
+
+    // Update user login info
+    await col.updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          failedLoginAttempts: 0,
+          accountLocked: false,
+          lastLoginAt: new Date()
+        }
+      }
+    )
+
+    const id = user._id!.toHexString()
+    
+    // Create session first to get session ID
+    const sessions = sessionsCollection()
+    const sessionResult = await sessions.insertOne({ 
+      userId: user._id, 
+      refreshToken: '', // Will be updated after JWT creation
+      createdAt: new Date(), 
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    })
+    
+    const sessionId = sessionResult.insertedId.toHexString()
+    
+    // Include session ID in JWT claims
+    const access = signAccess({ sub: id, jti: sessionId })
+    const refresh = signRefresh({ sub: id, jti: sessionId })
+    
+    // Update session with refresh token
+    await sessions.updateOne(
+      { _id: sessionResult.insertedId },
+      { $set: { refreshToken: refresh } }
+    )
+    
+    res.cookie(
+      process.env.SESSION_COOKIE_NAME || 'pv_sess', 
+      refresh, 
+      getSecureCookieOptions()
+    )
+    
+    await auditLogger.logAuth({
+      action: 'login_success',
+      userId: id,
+      email: user.email,
+      success: true,
+      ...clientInfo
+    })
+    
+    res.json({ 
+      access,
+      user: {
+        id,
+        email: user.email,
+        username: user.username,
+        twoFactorEnabled: user.twoFactorEnabled || false
+      }
+    })
+  } catch (error) {
+    await auditLogger.logAuth({
+      action: 'login_failure',
+      email,
+      success: false,
+      failureReason: 'Internal error',
+      ...clientInfo
+    })
+    throw error
+  }
+}))
+
+// Complete email-based login after OTP verification with 2FA
+router.post('/email-login-2fa', validateInput(z.object({
+  email: validationSchemas.email,
+  code: z.string().min(6, 'TOTP code must be 6 digits').max(6, 'TOTP code must be 6 digits')
+})), asyncHandler(async (req: Request, res: Response) => {
+  const { email, code } = req.body
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne({ email })
+    
+    if (!user) {
+      await auditLogger.logAuth({
+        action: 'login_failure',
+        email,
+        success: false,
+        failureReason: 'Account not found',
+        ...clientInfo
+      })
+      return res.status(404).json({ 
+        error: 'No account found with this email address' 
+      })
+    }
+
+    // Verify that 2FA is enabled and user has TOTP secret
+    if (!user.twoFactorEnabled || !user.totpSecret) {
+      await auditLogger.logAuth({
+        action: 'login_failure',
+        userId: user._id!.toHexString(),
+        email,
+        success: false,
+        failureReason: '2FA not enabled for email login',
+        ...clientInfo
+      })
+      return res.status(400).json({ 
+        error: '2FA is not enabled for this account' 
+      })
+    }
+
+    // Verify TOTP code
+    const verified = authenticator.check(code, user.totpSecret)
+
+    if (!verified) {
+      await auditLogger.logAuth({
+        action: 'login_failure',
+        userId: user._id!.toHexString(),
+        email,
+        success: false,
+        failureReason: 'Invalid 2FA code for email login',
+        ...clientInfo
+      })
+      return res.status(400).json({ 
+        error: 'Invalid verification code' 
+      })
+    }
+
+    // Update user login info
+    await col.updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          failedLoginAttempts: 0,
+          accountLocked: false,
+          lastLoginAt: new Date()
+        }
+      }
+    )
+
+    const id = user._id!.toHexString()
+    
+    // Create session first to get session ID
+    const sessions = sessionsCollection()
+    const sessionResult = await sessions.insertOne({ 
+      userId: user._id, 
+      refreshToken: '', // Will be updated after JWT creation
+      createdAt: new Date(), 
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    })
+    
+    const sessionId = sessionResult.insertedId.toHexString()
+    
+    // Include session ID in JWT claims
+    const access = signAccess({ sub: id, jti: sessionId })
+    const refresh = signRefresh({ sub: id, jti: sessionId })
+    
+    // Update session with refresh token
+    await sessions.updateOne(
+      { _id: sessionResult.insertedId },
+      { $set: { refreshToken: refresh } }
+    )
+    
+    res.cookie(
+      process.env.SESSION_COOKIE_NAME || 'pv_sess', 
+      refresh, 
+      getSecureCookieOptions()
+    )
+    
+    await auditLogger.logAuth({
+      action: 'login_success',
+      userId: id,
+      email: user.email,
+      success: true,
+      ...clientInfo
+    })
+    
+    res.json({ 
+      access,
+      user: {
+        id,
+        email: user.email,
+        username: user.username,
+        twoFactorEnabled: user.twoFactorEnabled || false
+      }
+    })
+  } catch (error) {
+    await auditLogger.logAuth({
+      action: 'login_failure',
+      email,
+      success: false,
+      failureReason: 'Internal error',
+      ...clientInfo
+    })
+    throw error
+  }
+}))
+
+// Verify account exists for email login
+router.post('/verify-email', validateInput(z.object({
+  email: validationSchemas.email
+})), asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    const user = await col.findOne({ email })
+    
+    if (!user) {
+      await auditLogger.logAuth({
+        action: 'login_attempt',
+        email,
+        success: false,
+        failureReason: 'Account not found',
+        ...clientInfo
+      })
+      return res.status(404).json({ 
+        exists: false,
+        error: 'No account found with this email address' 
+      })
+    }
+
+    await auditLogger.logAuth({
+      action: 'login_attempt',
+      userId: user._id!.toHexString(),
+      email,
+      success: true,
+      ...clientInfo
+    })
+
+    res.json({ 
+      exists: true,
+      username: user.username
+    })
+  } catch (error) {
+    await auditLogger.logAuth({
+      action: 'login_failure',
+      email,
+      success: false,
+      failureReason: 'Internal error',
+      ...clientInfo
+    })
+    throw error
+  }
+}))
+
+// Check if registration data already exists (before email verification)
+router.post('/check-registration', validateInput(z.object({
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_-]+$/),
+  email: validationSchemas.email,
+  phoneNumber: z.string().min(10).max(15).regex(/^[\+]?[1-9][\d]{0,15}$/)
+})), asyncHandler(async (req: Request, res: Response) => {
+  const { username, email, phoneNumber } = req.body
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+  
+  try {
+    const col = usersCollection()
+    
+    // Check if username, email, or phone number already exists
+    const existing = await col.findOne({ 
+      $or: [
+        { email },
+        { username: username.toLowerCase() },
+        { phoneNumber }
+      ]
+    })
+    
+    if (existing) {
+      let conflictField = 'Account'
+      let conflictType = 'account'
+      if (existing.email === email) {
+        conflictField = 'Email address'
+        conflictType = 'email'
+      } else if (existing.username === username.toLowerCase()) {
+        conflictField = 'Username'
+        conflictType = 'username'
+      } else if (existing.phoneNumber === phoneNumber) {
+        conflictField = 'Phone number'
+        conflictType = 'phoneNumber'
+      }
+      
+      await auditLogger.logAuth({
+        action: 'signup',
+        email,
+        success: false,
+        failureReason: `${conflictField} already exists`,
+        ...clientInfo
+      })
+      
+      return res.status(409).json({ 
+        available: false,
+        conflictType,
+        error: `${conflictField} is already registered` 
+      })
+    }
+
+    await auditLogger.logAuth({
+      action: 'signup',
+      email,
+      success: true,
+      failureReason: 'Registration data validated',
+      ...clientInfo
+    })
+
+    res.json({ 
+      available: true,
+      message: 'Registration data is available'
+    })
+  } catch (error) {
+    await auditLogger.logAuth({
+      action: 'signup',
+      email,
+      success: false,
+      failureReason: 'Internal error',
+      ...clientInfo
+    })
+    throw error
+  }
 }))
 
 export default router
