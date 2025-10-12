@@ -247,6 +247,8 @@ export class BrevoEmailService implements EmailService {
           'Message-ID': `<${Date.now()}-${Math.random().toString(36)}@tridex.app>`,
           'X-Mailer': 'Tridex Notification System',
           'List-Unsubscribe': '<mailto:unsubscribe@tridex.app>',
+          // Enable Gmail one‑click unsubscribe metadata (transactional providers ignore if not applicable)
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
           'X-Priority': '3',
           'X-MSMail-Priority': 'Normal',
           'Importance': 'Normal',
@@ -473,19 +475,20 @@ export class BrevoEmailService implements EmailService {
   }
 
   private getOTPSubject(purpose: string): string {
+    const plain = process.env.EMAIL_PLAIN_SUBJECTS === 'true'
     switch (purpose) {
       case 'login':
-        return '🔐 Your Login Verification Code - Tridex'
+        return plain ? 'Your Tridex login verification code' : '🔐 Your Login Verification Code - Tridex'
       case 'registration':
-        return '🎉 Welcome to Tridex - Verify Your Email'
+        return plain ? 'Welcome to Tridex — verify your email' : '🎉 Welcome to Tridex - Verify Your Email'
       case 'password_reset':
-        return '🔒 Password Reset Verification - Tridex'
+        return plain ? 'Tridex password reset verification code' : '🔒 Password Reset Verification - Tridex'
       case 'email_verification':
-        return '📧 Email Verification Required - Tridex'
+        return plain ? 'Verify your email — Tridex' : '📧 Email Verification Required - Tridex'
       case 'account_recovery':
-        return '🛡️ Account Recovery Verification - Tridex'
+        return plain ? 'Tridex account recovery verification code' : '🛡️ Account Recovery Verification - Tridex'
       default:
-        return '🔐 Verification Code - Tridex'
+        return plain ? 'Your Tridex verification code' : '🔐 Verification Code - Tridex'
     }
   }
 

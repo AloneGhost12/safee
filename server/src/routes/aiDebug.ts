@@ -22,6 +22,7 @@ const autoFixSchema = z.object({
 router.get('/health', async (req: Request, res: Response) => {
   try {
     const aiService = getAIDebugService()
+    const provider = geminiService.getStatus()
     
     // Perform health check
     const healthMetrics = await aiService.performHealthCheck()
@@ -29,7 +30,8 @@ router.get('/health', async (req: Request, res: Response) => {
     res.json({
       success: true,
       health: healthMetrics,
-      summary: aiService.getSystemStatus()
+      summary: aiService.getSystemStatus(),
+      provider
     })
   } catch (error) {
     console.error('❌ AI Debug API: Health check failed:', error)
@@ -46,6 +48,7 @@ router.get('/health', async (req: Request, res: Response) => {
 router.get('/status', async (req: Request, res: Response) => {
   try {
     const aiService = getAIDebugService()
+    const provider = geminiService.getStatus()
     
     // Perform health check
     const healthMetrics = await aiService.performHealthCheck()
@@ -61,6 +64,7 @@ router.get('/status', async (req: Request, res: Response) => {
         overall: healthMetrics.overall
       },
       timestamp: healthMetrics.timestamp,
+      provider,
       message: healthMetrics.overall === 'healthy' 
         ? '🟢 All systems operational' 
         : healthMetrics.overall === 'degraded'

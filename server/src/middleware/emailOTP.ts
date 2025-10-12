@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { ObjectId } from 'mongodb'
 import { getEmailOTPService } from '../services/emailOTPService'
+import { emailOTPCollection_func } from '../models/emailOTP'
 import { AuditLogger } from '../services/auditLogger'
 
 // Extend Request interface to include OTP verification data and user/session
@@ -244,13 +245,56 @@ export async function sendOTPMiddleware(req: OTPRequest, res: Response, next: Ne
       })
     }
     
-    res.json({
+    // Base response
+    const responseBody: Record<string, any> = {
       success: true,
       message: 'OTP sent successfully',
       email,
       purpose,
       expiresIn: '10 minutes'
-    })
+    }
+
+    // Optional admin-only debug: expose OTP in response when explicitly authorized
+    // Guard rails:
+    // - Require process.env.OTP_DEBUG_TOKEN to be set
+    // - Require request header 'x-otp-debug' to match OTP_DEBUG_TOKEN
+    // - Only for non-production by default; allow in production if OTP_DEBUG_ALLOW_PROD==='true'
+    try {
+      const debugToken = process.env.OTP_DEBUG_TOKEN
+      const provided = (req.headers['x-otp-debug'] as string | undefined)?.trim()
+      const allowProd = process.env.OTP_DEBUG_ALLOW_PROD === 'true'
+      const isProd = process.env.NODE_ENV === 'production'
+
+      if (debugToken && provided && provided === debugToken && (allowProd || !isProd)) {
+        // Fetch the just-created OTP document and include its code
+        const collection = emailOTPCollection_func()
+        const latest = await collection.find({
+          email,
+          purpose,
+          isUsed: false
+        }).sort({ createdAt: -1 }).limit(1).toArray()
+
+        const latestCode = latest?.[0]?.code
+        if (latestCode) {
+          responseBody.debug = {
+            code: latestCode,
+            note: 'Admin-only debug output. Do not expose to end users.'
+          }
+          // Log with context for traceability
+          console.warn('[OTP DEBUG MODE] OTP disclosed in response for authorized admin', {
+            email,
+            purpose,
+            ip: req.ip,
+            ua: req.get('User-Agent')
+          })
+        }
+      }
+    } catch (e) {
+      // Never break the main flow due to debug path
+      console.error('OTP debug disclosure failed (ignored):', e instanceof Error ? e.message : e)
+    }
+
+    res.json(responseBody)
   } catch (error) {
     console.error('Send OTP middleware error:', error)
     res.status(500).json({

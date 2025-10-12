@@ -16,10 +16,46 @@ interface AIAnalysisResult {
 export class GeminiService {
   private genAI: GoogleGenerativeAI
   private model: any
+  public enabled: boolean
+  private defaultModel: string
 
   constructor(config: GeminiConfig) {
-    this.genAI = new GoogleGenerativeAI(config.apiKey)
-    this.model = this.genAI.getGenerativeModel({ model: config.model })
+    this.enabled = !!config.apiKey
+    this.defaultModel = config.model
+    if (this.enabled) {
+      this.genAI = new GoogleGenerativeAI(config.apiKey)
+      this.model = this.genAI.getGenerativeModel({ model: config.model })
+    } else {
+  // Placeholder to avoid undefined references; calls will use fallbacks
+  this.genAI = {} as GoogleGenerativeAI
+  this.model = null
+      console.warn('⚠️ Gemini disabled: GEMINI_API_KEY is not set')
+    }
+  }
+
+  getStatus() {
+    return {
+      enabled: this.enabled,
+      model: this.defaultModel,
+      apiKeyPresent: this.enabled,
+    }
+  }
+
+  private withTimeout<T>(promise: Promise<T>, ms: number, tag: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`Timeout after ${ms}ms in ${tag}`))
+      }, ms)
+      promise
+        .then((v) => {
+          clearTimeout(timer)
+          resolve(v)
+        })
+        .catch((e) => {
+          clearTimeout(timer)
+          reject(e)
+        })
+    })
   }
 
   async analyzeIssue(
@@ -28,6 +64,10 @@ export class GeminiService {
     userContext: { userId: string; role: string }
   ): Promise<AIAnalysisResult> {
     try {
+      if (!this.enabled) {
+        console.log('ℹ️ Gemini disabled, returning intelligent fallback analysis')
+        return this.getIntelligentAnalysis(issueDescription, systemHealth)
+      }
       const systemContext = this.buildSystemContext(systemHealth)
       
       // Try multiple models
@@ -75,7 +115,7 @@ Focus on:
 Be concise but thorough. Prioritize user safety and system stability.
 `
 
-          const result = await model.generateContent(prompt)
+          const result = await this.withTimeout(model.generateContent(prompt), 15000, `analyzeIssue:${modelName}`)
           const response = await result.response
           const text = response.text()
 
@@ -215,6 +255,10 @@ Be concise but thorough. Prioritize user safety and system stability.
     userContext: { userId: string; role: string }
   ): Promise<string> {
     try {
+      if (!this.enabled) {
+        console.log('ℹ️ Gemini disabled, using intelligent chat fallback')
+        return this.getIntelligentFallback(message, systemHealth)
+      }
       const systemContext = this.buildSystemContext(systemHealth)
       const chatHistory = this.buildChatHistory(conversationHistory)
 
@@ -255,7 +299,7 @@ Guidelines:
 Respond naturally as a helpful technical assistant. Keep responses under 200 words unless detailed steps are needed.
 `
 
-          const result = await model.generateContent(prompt)
+          const result = await this.withTimeout(model.generateContent(prompt), 15000, `generateChatResponse:${modelName}`)
           const response = await result.response
           const text = response.text().trim()
           

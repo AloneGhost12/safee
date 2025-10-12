@@ -502,17 +502,16 @@ export const emailOTPAPI = {
     }>('/otp/config'),
 
   // Get OTP status for email
-  getStatus: (email: string, purpose: string = 'email_verification') =>
-    request<{
+  getStatus: (email: string, purpose: string = 'email_verification') => {
+    const params = new URLSearchParams({ email, purpose })
+    return request<{
       hasActivateOTP: boolean;
       attemptsRemaining: number;
       canResend: boolean;
       nextResendTime?: number;
       expiresAt?: number;
-    }>('/otp/status', {
-      method: 'POST',
-      body: JSON.stringify({ email, purpose }),
-    }),
+    }>(`/otp/status?${params.toString()}`, { method: 'GET' })
+  },
 
   // Test email functionality (for admin/testing)
   testEmail: (email: string) =>
@@ -549,6 +548,12 @@ export const emailOTPAPI = {
     }>('/auth/email-login', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    }).then(result => {
+      // If login is completed (no additional 2FA), set the auth token
+      if (!result.requires2FA && result.access) {
+        setAuthToken(result.access)
+      }
+      return result
     }),
 }
 

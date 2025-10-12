@@ -89,14 +89,21 @@ const verifySecurityQuestionsSchema = z.object({
  */
 function getSecureCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production'
-  
+
+  // In production, we often serve API and Web app from different origins (Render, Vercel, etc.).
+  // To allow the browser to send the refresh-token cookie with cross-site requests,
+  // the cookie must be marked SameSite=None and Secure.
+  // In development, Lax is fine (usually same-origin via proxy) and avoids third-party warnings.
+  const sameSite = (isProduction ? 'none' : 'lax') as 'none' | 'lax' | 'strict'
+  const domain = isProduction ? process.env.COOKIE_DOMAIN : undefined
+
   return {
     httpOnly: true,
-    secure: isProduction, // Only send over HTTPS in production
-    sameSite: 'strict' as const,
+    secure: isProduction, // required when SameSite=None
+    sameSite,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    ...(isProduction && { domain: process.env.COOKIE_DOMAIN })
+    ...(domain ? { domain } : {})
   }
 }
 
@@ -1592,7 +1599,9 @@ router.post('/email-login', validateInput(z.object({
         id,
         email: user.email,
         username: user.username,
-        twoFactorEnabled: user.twoFactorEnabled || false
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        role: user.userRole || UserRole.ADMIN,
+        permissions: getUserPermissions(user.userRole || UserRole.ADMIN)
       }
     })
   } catch (error) {
@@ -1722,7 +1731,9 @@ router.post('/email-login-2fa', validateInput(z.object({
         id,
         email: user.email,
         username: user.username,
-        twoFactorEnabled: user.twoFactorEnabled || false
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        role: user.userRole || UserRole.ADMIN,
+        permissions: getUserPermissions(user.userRole || UserRole.ADMIN)
       }
     })
   } catch (error) {
