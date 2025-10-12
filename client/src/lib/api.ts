@@ -887,3 +887,54 @@ export const filesAPI = {
     }
   },
 }
+
+// AI Debug API
+export const aiDebugAPI = {
+  // Get system status for AI Debug widget
+  getStatus: () =>
+    request<{
+      success: boolean
+      status: 'healthy' | 'degraded' | 'down'
+      health: {
+        email: string
+        database: string
+        storage: string
+        overall: string
+      }
+      timestamp: string
+      message: string
+    }>(`/ai-debug/status`),
+
+  // Send a chat message for AI analysis
+  chat: (message: string, conversationHistory?: Array<{ role: string; content: string }>) =>
+    request<{
+      success: boolean
+      response: string
+      issueId?: string | null
+      canAutoFix: boolean
+      severity: 'low' | 'medium' | 'high' | 'critical'
+      systemHealth: {
+        overall: string
+        email: string
+        database: string
+        storage: string
+      }
+    }>(`/ai-debug/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationHistory })
+    }),
+
+  // Apply automatic fix for an issue
+  applyAutoFix: (issueId: string) =>
+    request<{
+      success: boolean
+      result: {
+        appliedFixes: string[]
+        message: string
+        requiresManualReview: boolean
+      }
+    }>(`/ai-debug/auto-fix`, {
+      method: 'POST',
+      body: JSON.stringify({ issueId })
+    })
+}

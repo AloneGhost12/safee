@@ -16,6 +16,7 @@ import {
   Maximize2
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
+import { aiDebugAPI } from '@/lib/api'
 
 interface ChatMessage {
   id: string
@@ -51,7 +52,8 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { state } = useApp()
+  // API helper manages auth; no direct state use here currently
+  useApp()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -72,15 +74,9 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
 
   const loadSystemStatus = async () => {
     try {
-      const response = await fetch('/api/ai-debug/status', {
-        headers: {
-          'Authorization': `Bearer ${state.user?.token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setSystemStatus(data.status)
+      const data = await aiDebugAPI.getStatus()
+      if (data?.success && data.status) {
+        setSystemStatus({ status: data.status, lastChecked: new Date(data.timestamp) })
       }
     } catch (error) {
       console.error('Failed to load system status:', error)
@@ -102,19 +98,8 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
     setIsLoading(true)
 
     try {
-      // Send message to AI chat endpoint
-      const response = await fetch('/api/ai-debug/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.user?.token}`
-        },
-        body: JSON.stringify({
-          message: userMessage.content
-        })
-      })
-
-      const data = await response.json()
+      // Send message using API helper (handles base URL and auth)
+      const data = await aiDebugAPI.chat(userMessage.content)
 
       if (data.success) {
         const aiMessage: ChatMessage = {
@@ -124,7 +109,7 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
           timestamp: new Date(),
           severity: data.severity,
           canAutoFix: data.canAutoFix,
-          issueId: data.issueId
+          issueId: (data.issueId ?? undefined) as string | undefined
         }
 
         setMessages(prev => [...prev, aiMessage])
@@ -132,7 +117,7 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
         const errorMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: 'ai',
-          content: data.response || '❌ Sorry, I encountered an error analyzing your issue. Please try again.',
+          content: (data as any).response || '❌ Sorry, I encountered an error analyzing your issue. Please try again.',
           timestamp: new Date(),
           severity: 'high'
         }
@@ -160,16 +145,7 @@ export function AIDebugChat({ onClose }: AIDebugChatProps) {
     try {
       setIsLoading(true)
       
-      const response = await fetch('/api/ai-debug/auto-fix', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.user?.token}`
-        },
-        body: JSON.stringify({ issueId })
-      })
-
-      const data = await response.json()
+      const data = await aiDebugAPI.applyAutoFix(issueId)
 
       const resultMessage: ChatMessage = {
         id: Date.now().toString(),
