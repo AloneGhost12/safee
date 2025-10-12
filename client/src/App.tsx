@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import { AdminProvider } from './contexts/AdminContext'
+import { AIDebugChat } from './components/AIDebugChat'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPageClean'
 import { LoginPageWithOTP } from './pages/LoginPageWithOTP'
@@ -187,11 +188,23 @@ function App() {
         <AdminProvider>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <AppRoutes />
+            <AIDebugChatWrapper />
           </div>
         </AdminProvider>
       </AppProvider>
     </Router>
   )
+}
+
+function AIDebugChatWrapper() {
+  const { state } = useApp()
+  
+  // Only show AI Debug Chat for authenticated users
+  if (!state.user) {
+    return null
+  }
+  
+  return <AIDebugChat />
 }
 
 export default App

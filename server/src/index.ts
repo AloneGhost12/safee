@@ -13,6 +13,7 @@ import healthRoutes from './routes/health'
 import notesRoutes from './routes/notes'
 import filesRoutes from './routes/files'
 import otpRoutes from './routes/otp'
+import aiDebugRoutes from './routes/aiDebug'
 import testRoutes, { initializeTestRunner } from './utils/testRunner'
 import { httpLogger } from './middleware/logger'
 import { errorHandler, notFoundHandler } from './middleware/errors'
@@ -87,6 +88,7 @@ app.use('/api', healthRoutes)
 app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)
 app.use('/api/otp', otpRoutes)
+app.use('/api/ai-debug', aiDebugRoutes)
 app.use('/api/test', testRoutes)
 
 // Testing dashboard
