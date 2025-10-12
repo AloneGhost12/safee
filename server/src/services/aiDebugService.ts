@@ -395,7 +395,7 @@ export class AIDebugService {
    * Analyze performance issues
    */
   private analyzePerformanceIssue(description: string, health: HealthMetrics) {
-    const slowServices = []
+    const slowServices: string[] = []
     
     if (health.database.responseTime > 5000) slowServices.push('database')
     if (health.email.responseTime > 10000) slowServices.push('email')
