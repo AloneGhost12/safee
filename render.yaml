@@ -39,6 +39,17 @@ services:
       # Google Gemini AI configuration
       - key: GEMINI_API_KEY
         value: AIzaSyAZB4-tLhnTF6SArSM6i5WyWsQ95Hi1Bws
+      # Email SMTP configuration (Brevo)
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        value: 93c1d4002@smtp-brevo.com
+      - key: SMTP_PASS
+        value: byQ4dHOJkNEaMGYh
+      - key: SMTP_SECURE
+        value: false
       # S3/R2 (optional)
       - key: S3_ENDPOINT
         sync: false

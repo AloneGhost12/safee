@@ -59,32 +59,35 @@ export class BrevoEmailService implements EmailService {
   }
 
   private getProductionConfig(): any {
-    // Production configuration with most reliable settings for cloud hosting
+    // Production configuration optimized for Render.com and cloud hosting
     return {
       host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false, // Use STARTTLS for better compatibility
+      secure: false, // Use STARTTLS for port 587
       auth: {
         user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
         pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
       },
-      // More aggressive timeouts for production cloud environments
-      connectionTimeout: 60000, // 60s for cloud environments
-      greetingTimeout: 30000,   // 30s greeting timeout
-      socketTimeout: 60000,     // 60s socket timeout
-      // Connection pooling disabled for more reliable individual connections
+      // Optimized timeouts for cloud environments
+      connectionTimeout: 30000, // 30s for initial connection
+      greetingTimeout: 15000,   // 15s greeting timeout
+      socketTimeout: 30000,     // 30s socket timeout
+      // Connection pooling disabled for reliability
       pool: false,
-      // TLS configuration optimized for cloud hosting
+      maxConnections: 1,
+      maxMessages: 1,
+      // TLS configuration for better compatibility
       tls: {
-        ciphers: 'SSLv3',
-        rejectUnauthorized: false // More permissive for cloud environments
+        rejectUnauthorized: false,
+        ciphers: 'ALL'
       },
-      // Additional options for cloud hosting compatibility
+      // STARTTLS settings
       requireTLS: true,
       ignoreTLS: false,
-      // Enable debug logging in production for troubleshooting
-      logger: true,
-      debug: true
+      opportunisticTLS: true,
+      // Disable debug in production for performance
+      logger: false,
+      debug: false
     }
   }
 
