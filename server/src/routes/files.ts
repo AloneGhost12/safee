@@ -677,6 +677,7 @@ router.post('/:fileId/preview',
 
     // Verify password - Must be user's main password
     if (!password || password.length < 1) {
+      console.log('🔐 Preview failed: Empty password provided')
       logFileAccess(userId, fileId, 'preview', req, false, 'Invalid password')
       return res.status(401).json({ error: 'Invalid password' })
     }
@@ -691,7 +692,21 @@ router.post('/:fileId/preview',
     }
 
     // Verify that the provided password is the user's main password
+    console.log('🔐 Password verification for preview:', {
+      userId: userId,
+      fileId: fileId,
+      passwordLength: password?.length || 0,
+      userHashExists: !!user.passwordHash,
+      timestamp: new Date().toISOString()
+    })
+    
     const passwordValid = await verifyPassword(user.passwordHash, password)
+    console.log('🔐 Password verification result:', {
+      userId: userId,
+      valid: passwordValid,
+      timestamp: new Date().toISOString()
+    })
+    
     if (!passwordValid) {
       logFileAccess(userId, fileId, 'preview', req, false, 'Invalid main password')
       return res.status(401).json({ error: 'Invalid password. Only the main password can be used to access files.' })
