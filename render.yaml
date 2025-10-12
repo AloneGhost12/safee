@@ -36,6 +36,9 @@ services:
         value: 279872768346294
       - key: CLOUDINARY_API_SECRET
         value: R2ioEHtBBs-6Kwmj-pbCL5Er3CQ
+      # Google Gemini AI configuration
+      - key: GEMINI_API_KEY
+        value: AIzaSyAZB4-tLhnTF6SArSM6i5WyWsQ95Hi1Bws
       # S3/R2 (optional)
       - key: S3_ENDPOINT
         sync: false
