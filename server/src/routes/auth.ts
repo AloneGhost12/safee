@@ -215,8 +215,19 @@ router.post('/signup', validateInput(signupSchema), asyncHandler(async (req: Req
       success: true,
       ...clientInfo
     })
-    
-    res.json({ access })
+
+    // Return user data along with access token for proper frontend auth
+    res.json({ 
+      access,
+      user: {
+        id,
+        email,
+        username: username.toLowerCase(),
+        role: UserRole.ADMIN,
+        twoFactorEnabled: false,
+        permissions: getUserPermissions(UserRole.ADMIN)
+      }
+    })
   } catch (error) {
     await auditLogger.logAuth({
       action: 'signup',

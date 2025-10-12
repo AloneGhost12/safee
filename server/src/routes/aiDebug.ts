@@ -172,27 +172,6 @@ router.post('/auto-fix', requireAuth, async (req: AuthedRequest, res: Response) 
 })
 
 /**
- * Get system status summary
- */
-router.get('/status', async (req: Request, res: Response) => {
-  try {
-    const aiService = getAIDebugService()
-    const status = aiService.getSystemStatus()
-    
-    res.json({
-      success: true,
-      status
-    })
-  } catch (error) {
-    console.error('❌ AI Debug API: Status check failed:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Status check failed'
-    })
-  }
-})
-
-/**
  * Chat endpoint for natural language issue reporting
  */
 router.post('/chat', requireAuth, async (req: AuthedRequest, res: Response) => {

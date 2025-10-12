@@ -98,15 +98,27 @@ export function RegisterPageWithOTP() {
     try {
       const response = await authAPI.signup(username, email, phoneNumber, password)
       
-      // Store user info with token
+      // Create complete user object from signup response
       const user = { 
-        id: response.user?.id || 'user-id', 
-        email, 
-        username,
-        token: response.access 
+        id: response.user?.id || 'user-id',
+        email: response.user?.email || email,
+        username: response.user?.username || username,
+        token: response.access,
+        role: response.user?.role || 'admin',
+        permissions: response.user?.permissions || ['read', 'write', 'delete', 'admin']
       }
+      
+      console.log('📝 Setting user after successful signup:', { 
+        id: user.id, 
+        email: user.email, 
+        hasToken: !!user.token,
+        role: user.role,
+        permissions: user.permissions
+      })
+      
       dispatch({ type: 'SET_USER', payload: user })
       
+      // Navigate to main vault
       navigate('/vault')
     } catch (err: any) {
       setError(err.message || 'Registration failed')

@@ -298,7 +298,7 @@ async function request<T>(
 // Auth API
 export const authAPI = {
   signup: (username: string, email: string, phoneNumber: string, password: string) =>
-    request<{ access: string; user?: { id: string; email: string; username: string } }>('/auth/signup', {
+    request<{ access: string; user?: { id: string; email: string; username: string; role: string; twoFactorEnabled: boolean; permissions: string[] } }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ username, email, phoneNumber, password }),
     }).then(result => {

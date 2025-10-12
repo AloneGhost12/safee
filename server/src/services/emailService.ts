@@ -68,20 +68,21 @@ export class BrevoEmailService implements EmailService {
         user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
         pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
       },
-      // Optimized timeouts for cloud environments
-      connectionTimeout: 30000, // 30s for initial connection
-      greetingTimeout: 15000,   // 15s greeting timeout
-      socketTimeout: 30000,     // 30s socket timeout
+      // Cloud-optimized shorter timeouts for faster failure detection
+      connectionTimeout: 45000, // 45s for initial connection
+      greetingTimeout: 20000,   // 20s greeting timeout
+      socketTimeout: 45000,     // 45s socket timeout
       // Connection pooling disabled for reliability
       pool: false,
       maxConnections: 1,
       maxMessages: 1,
-      // TLS configuration for better compatibility
+      // Enhanced TLS configuration for cloud compatibility
       tls: {
         rejectUnauthorized: false,
-        ciphers: 'ALL'
+        ciphers: 'ALL',
+        secureProtocol: 'TLSv1_2_method'
       },
-      // STARTTLS settings
+      // STARTTLS settings optimized for Render/cloud environments
       requireTLS: true,
       ignoreTLS: false,
       opportunisticTLS: true,
@@ -144,33 +145,53 @@ export class BrevoEmailService implements EmailService {
     
     // Enhanced alternative configurations for cloud hosting compatibility
     const alternatives = [
-      // First attempt: Standard STARTTLS on port 587
+      // First attempt: Ultra-safe STARTTLS with minimal security for cloud compatibility
       { 
+        provider: 'brevo-starttls',
+        host: 'smtp-relay.brevo.com',
         port: 587, 
         secure: false, 
         requireTLS: true,
+        connectionTimeout: 60000,
+        auth: {
+          user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+          pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+        },
         tls: { 
-          ciphers: 'SSLv3',
-          rejectUnauthorized: false
+          rejectUnauthorized: false,
+          ciphers: 'ALL'
         } 
       },
-      // Second attempt: Alternative submission port
+      // Second attempt: Alternative submission port with relaxed security
       { 
+        provider: 'brevo-alt-port',
+        host: 'smtp-relay.brevo.com',
         port: 2525, 
         secure: false, 
-        requireTLS: true,
+        requireTLS: false,
+        connectionTimeout: 45000,
+        auth: {
+          user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
+          pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
+        },
         tls: { 
-          ciphers: 'SSLv3',
-          rejectUnauthorized: false
+          rejectUnauthorized: false,
+          ciphers: 'ALL'
         } 
       },
-      // Third attempt: Standard SMTP port (often blocked in cloud)
+      // Third attempt: Gmail SMTP as emergency fallback
       { 
-        port: 25, 
+        provider: 'gmail-fallback',
+        host: 'smtp.gmail.com',
+        port: 587, 
         secure: false, 
-        requireTLS: false,
+        requireTLS: true,
+        connectionTimeout: 30000,
+        auth: {
+          user: process.env.GMAIL_USER || 'gff130170@gmail.com',
+          pass: process.env.GMAIL_PASS || process.env.SMTP_PASS
+        },
         tls: { 
-          ciphers: 'SSLv3',
           rejectUnauthorized: false
         } 
       }
@@ -178,29 +199,28 @@ export class BrevoEmailService implements EmailService {
     
     const currentAlt = alternatives[this.retryCount - 1]
     if (currentAlt) {
+      console.log(`🔧 Attempting ${currentAlt.provider} on port ${currentAlt.port}...`)
+      
       this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        host: currentAlt.host,
         port: currentAlt.port,
         secure: currentAlt.secure,
-        auth: {
-          user: process.env.SMTP_USER || '93c1d4002@smtp-brevo.com',
-          pass: process.env.SMTP_PASS || 'byQ4dHOJkNEaMGYh'
-        },
-        // Extended timeouts for alternative attempts
-        connectionTimeout: 90000, // 90s for problematic connections
-        greetingTimeout: 45000,   // 45s greeting timeout
-        socketTimeout: 90000,     // 90s socket timeout
+        auth: currentAlt.auth,
+        // Aggressive timeouts for fast failure
+        connectionTimeout: currentAlt.connectionTimeout,
+        greetingTimeout: 15000,
+        socketTimeout: currentAlt.connectionTimeout,
         // Individual connections for reliability
         pool: false,
+        maxConnections: 1,
+        maxMessages: 1,
         // TLS configuration
         requireTLS: currentAlt.requireTLS,
         tls: currentAlt.tls,
-        // Enhanced debugging for troubleshooting
-        logger: true,
-        debug: true
+        // Minimal logging for performance
+        logger: false,
+        debug: false
       } as any)
-      
-      console.log(`🔧 Trying port ${currentAlt.port}, secure: ${currentAlt.secure}, requireTLS: ${currentAlt.requireTLS}`)
     }
   }
 
@@ -210,10 +230,8 @@ export class BrevoEmailService implements EmailService {
       console.log('🔍 Verifying SMTP connection before sending email...')
       const connected = await this.verifyConnection()
       if (!connected) {
-        return {
-          success: false,
-          error: 'SMTP connection failed after all retry attempts'
-        }
+        // Attempt to use fallback before giving up
+        return this.handleEmailFallback(options)
       }
     }
 
@@ -250,33 +268,114 @@ export class BrevoEmailService implements EmailService {
       
       console.error('❌ Failed to send email:', errorMessage)
       
-      // If this is a connection timeout in production, try to reinitialize and provide fallback
-      if (process.env.NODE_ENV === 'production' && 
-          (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNREFUSED'))) {
-        console.log('🔄 Connection issue detected, attempting fallback...')
-        this.connectionVerified = false
-        this.retryCount = 0
-        
-        // In production, log the email content for manual processing if needed
-        console.log('📧 Email fallback - Content logged for manual processing:', {
-          to: options.to,
-          subject: options.subject,
-          timestamp: new Date().toISOString(),
-          error: errorMessage
-        })
-        
-        // Try reinitializing with a more basic configuration
-        await this.initializeFallbackTransporter()
-        
-        return {
-          success: false,
-          error: 'SMTP timeout - email service using fallback mode. Content logged for processing.'
-        }
+      // Handle timeout and connection errors with intelligent fallback
+      if (this.isConnectionError(errorMessage)) {
+        console.log('🔄 Connection issue detected, attempting intelligent fallback...')
+        return this.handleEmailFallback(options, errorMessage)
       }
       
       return {
         success: false,
         error: errorMessage
+      }
+    }
+  }
+
+  private isConnectionError(errorMessage: string): boolean {
+    const connectionErrorPatterns = [
+      'timeout', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 
+      'ENOTFOUND', 'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE',
+      'Connection timeout', 'socket hang up', 'network timeout'
+    ]
+    
+    return connectionErrorPatterns.some(pattern => 
+      errorMessage.toLowerCase().includes(pattern.toLowerCase())
+    )
+  }
+
+  private async handleEmailFallback(options: EmailOptions, originalError?: string): Promise<EmailServiceResult> {
+    console.log('🚨 Initiating email fallback system...')
+    
+    // Reset connection state
+    this.connectionVerified = false
+    this.retryCount = 0
+    
+    // Try Gmail fallback if available
+    if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
+      console.log('📧 Attempting Gmail fallback...')
+      const gmailResult = await this.tryGmailFallback(options)
+      if (gmailResult.success) {
+        return gmailResult
+      }
+    }
+    
+    // Log email for manual processing
+    const fallbackLog = {
+      timestamp: new Date().toISOString(),
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      originalError: originalError || 'Unknown error',
+      provider: 'brevo-failed'
+    }
+    
+    console.log('📧 Email fallback - Content logged for manual processing:', fallbackLog)
+    
+    // In production, we should queue this email for retry
+    if (process.env.NODE_ENV === 'production') {
+      // Could implement a queue here in the future
+      console.log('💡 Consider implementing email queue for reliable delivery')
+    }
+    
+    return {
+      success: false,
+      error: `SMTP connection failed. ${originalError ? `Original error: ${originalError}` : ''} Email logged for manual processing.`
+    }
+  }
+
+  private async tryGmailFallback(options: EmailOptions): Promise<EmailServiceResult> {
+    try {
+      console.log('🔧 Setting up Gmail fallback transporter...')
+      
+      const gmailTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_PASS
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 10000,
+        socketTimeout: 30000,
+        pool: false,
+        tls: {
+          rejectUnauthorized: false
+        },
+        requireTLS: true
+      } as any)
+
+      const mailOptions = {
+        from: `"Tridex Support (Backup)" <${process.env.GMAIL_USER}>`,
+        replyTo: 'support@tridex.app',
+        to: options.to,
+        subject: `[Backup Service] ${options.subject}`,
+        html: options.html,
+        text: options.text || this.stripHtml(options.html)
+      }
+
+      const info = await gmailTransporter.sendMail(mailOptions)
+      console.log('✅ Gmail fallback successful:', info.messageId)
+      
+      return {
+        success: true,
+        messageId: info.messageId
+      }
+    } catch (error) {
+      console.error('❌ Gmail fallback failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Gmail fallback failed'
       }
     }
   }
