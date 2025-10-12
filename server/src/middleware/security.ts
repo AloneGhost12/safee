@@ -19,7 +19,8 @@ export function setupCSP() {
         : ["'self'", "'strict-dynamic'"],
       "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com"],
-      "img-src": ["'self'", "data:", "https:", "blob:"],
+  // Allow external QR code image host used by the client settings page
+  "img-src": ["'self'", "data:", "https:", "blob:", "https://api.qrserver.com"],
       "connect-src": isDev
         ? ["'self'", "http://localhost:*", "ws://localhost:*", "https://api.cloudinary.com"]
         : ["'self'", "https://api.cloudinary.com", process.env.CLOUDINARY_UPLOAD_URL || ""].filter(Boolean),
