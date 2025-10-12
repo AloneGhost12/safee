@@ -10,6 +10,8 @@ import {
   fileOperationSchema
 } from '../middleware/fileAccess'
 import { filesCollection, FileMetadata } from '../models/file'
+import { usersCollection } from '../models/user'
+import { verifyPassword } from '../utils/crypto'
 import { 
   generateUploadUrl, 
   generateDownloadUrl, 
@@ -178,10 +180,26 @@ router.post('/:fileId/download-url',
       return res.status(404).json({ error: 'File not found' })
     }
 
-    // Verify password - Enhanced validation
+    // Verify password - Must be user's main password
     if (!password || password.length < 1) {
       logFileAccess(userId, fileId, 'download', req, false, 'Invalid password')
       return res.status(401).json({ error: 'Invalid password' })
+    }
+
+    // Get user data to verify password
+    const usersCol = usersCollection()
+    const user = await usersCol.findOne({ _id: new ObjectId(userId) })
+    
+    if (!user) {
+      logFileAccess(userId, fileId, 'download', req, false, 'User not found')
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Verify that the provided password is the user's main password
+    const passwordValid = await verifyPassword(user.passwordHash, password)
+    if (!passwordValid) {
+      logFileAccess(userId, fileId, 'download', req, false, 'Invalid main password')
+      return res.status(401).json({ error: 'Invalid password. Only the main password can be used to download files.' })
     }
 
     // Check virus scan status
@@ -657,10 +675,26 @@ router.post('/:fileId/preview',
       return res.status(404).json({ error: 'File not found' })
     }
 
-    // Verify password
+    // Verify password - Must be user's main password
     if (!password || password.length < 1) {
       logFileAccess(userId, fileId, 'preview', req, false, 'Invalid password')
       return res.status(401).json({ error: 'Invalid password' })
+    }
+
+    // Get user data to verify password
+    const usersCol = usersCollection()
+    const user = await usersCol.findOne({ _id: new ObjectId(userId) })
+    
+    if (!user) {
+      logFileAccess(userId, fileId, 'preview', req, false, 'User not found')
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Verify that the provided password is the user's main password
+    const passwordValid = await verifyPassword(user.passwordHash, password)
+    if (!passwordValid) {
+      logFileAccess(userId, fileId, 'preview', req, false, 'Invalid main password')
+      return res.status(401).json({ error: 'Invalid password. Only the main password can be used to access files.' })
     }
 
     // Check virus scan status

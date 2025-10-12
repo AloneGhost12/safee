@@ -647,7 +647,7 @@ export const FileManager = forwardRef<FileManagerRef, FileManagerProps>(({ onUpl
         onClose={() => setPasswordPrompt(prev => ({ ...prev, isOpen: false }))}
         onSubmit={handlePasswordSubmit}
         title={passwordPrompt.type === 'download' ? 'Authenticate Download' : 'Authenticate Preview'}
-        description={`Enter your password to ${passwordPrompt.type} "${passwordPrompt.file?.decryptedName || 'this file'}"`}
+        description={`Enter your main password to ${passwordPrompt.type} "${passwordPrompt.file?.decryptedName || 'this file'}". Note: Only the main password (not view password) can be used to access files.`}
         actionText={passwordPrompt.type === 'download' ? 'Download' : 'Preview'}
         isLoading={passwordPrompt.loading}
         error={passwordPrompt.error}

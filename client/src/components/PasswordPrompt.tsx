@@ -157,10 +157,10 @@ export function PasswordPrompt({
         </form>
 
         {/* Security Note */}
-        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            🔒 Your password is required to decrypt and access this file securely. 
-            It will not be stored or transmitted in plain text.
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-400">
+            🔒 <strong>Main Password Required:</strong> Only your main password (full access password) can be used to download or access files. 
+            View passwords cannot be used for file operations. Your password is encrypted and never stored in plain text.
           </p>
         </div>
       </div>
