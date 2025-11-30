@@ -159,3 +159,7 @@ test-*admin*.js
 **/token_*
 admin-secrets.json
 admin-tokens.json
+
+# Local file uploads (user data)
+uploads/
+**/uploads/

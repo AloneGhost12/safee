@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { ObjectId } from 'mongodb'
 import { usersCollection, User } from '../models/user'
 import { sessionsCollection } from '../models/session'
+import { notesCollection } from '../models/note'
+import { filesCollection } from '../models/file'
 import { emailRecoveryCodesCollection, cleanupExpiredRecoveryCodes } from '../models/emailRecovery'
 import { authenticator } from 'otplib'
 import { hashPassword, verifyPassword } from '../utils/crypto'
@@ -2033,6 +2035,94 @@ router.get('/has-view-password', requireAuth, asyncHandler(async (req: AuthedReq
   } catch (error) {
     console.error('Check view password error:', error)
     res.status(500).json({ error: 'Failed to check view password status' })
+  }
+}))
+
+/**
+ * Danger Zone: Delete Account
+ * Securely deletes the authenticated user's account and all associated data.
+ */
+router.delete('/account', requireAuth, asyncHandler(async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId
+  const auditLogger = AuditLogger.getInstance()
+  const clientInfo = getClientInfo(req)
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  try {
+    const userObjectId = new ObjectId(userId)
+
+    // Ensure user exists
+    const usersCol = usersCollection()
+    const user = await usersCol.findOne({ _id: userObjectId })
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+  // Count and delete sessions
+  const sessionsCol = sessionsCollection()
+  const sessionCount = await sessionsCol.countDocuments({ userId: userObjectId })
+  await sessionsCol.deleteMany({ userId: userObjectId })
+
+  // Count and delete notes
+  const notesCol = notesCollection()
+  const noteCount = await notesCol.countDocuments({ userId: userObjectId })
+  await notesCol.deleteMany({ userId: userObjectId })
+
+    // Delete files: remove from storage if possible, then DB
+    const filesCol = filesCollection()
+  const userFiles = await filesCol.find({ userId: userObjectId }).toArray()
+    for (const file of userFiles) {
+      try {
+        // Best-effort deletion from storage; ignore errors to continue cleanup
+        if (file.s3Key) {
+          const { deleteFile } = await import('../utils/s3')
+          await deleteFile(file.s3Key)
+        } else if (file.cloudinaryPublicId) {
+          const { deleteFromCloudinary } = await import('../utils/cloudinary')
+          await deleteFromCloudinary(file.cloudinaryPublicId)
+        }
+      } catch (storageErr) {
+        console.warn('Storage delete failed for file', file._id?.toHexString(), storageErr)
+      }
+    }
+  await filesCol.deleteMany({ userId: userObjectId })
+
+    // Finally delete user
+    await usersCol.deleteOne({ _id: userObjectId })
+
+    // Clear cookies
+    res.clearCookie(process.env.SESSION_COOKIE_NAME || 'pv_sess', { path: '/' })
+
+    await auditLogger.logSecurityEvent({
+      action: 'account_deletion',
+      userId,
+      resource: 'account',
+      details: {
+        deletedSessions: sessionCount,
+        deletedNotes: noteCount,
+        deletedFiles: userFiles.length
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+      riskLevel: 'high'
+    })
+
+    return res.json({ ok: true, message: 'Account and all data deleted successfully.' })
+  } catch (err) {
+    console.error('Account deletion error:', err)
+    await auditLogger.logSecurityEvent({
+      action: 'account_deletion',
+      userId: req.userId || '',
+      resource: 'account',
+      details: { error: err instanceof Error ? err.message : String(err) },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+      riskLevel: 'high'
+    })
+    return res.status(500).json({ error: 'Failed to delete account' })
   }
 }))
 

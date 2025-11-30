@@ -3,27 +3,27 @@ const getApiBase = () => {
   // Check if we're in production
   const isProduction = import.meta.env.PROD
   const isDevelopment = import.meta.env.DEV
-  
+
   console.log('🔧 API Base Detection:', {
     isProduction,
     isDevelopment,
     VITE_API_URL: import.meta.env.VITE_API_URL,
     hostname: window.location.hostname
   })
-  
+
   // In production, use the configured API URL
   if (isProduction && import.meta.env.VITE_API_URL) {
     const apiBase = `${import.meta.env.VITE_API_URL}/api`
     console.log('🎯 Using production API:', apiBase)
     return apiBase
   }
-  
+
   // In development, check if we're on localhost
   if (isDevelopment || window.location.hostname === 'localhost') {
     console.log('🏠 Using development proxy: /api')
     return '/api'
   }
-  
+
   // Fallback for production without environment variable
   const fallbackApi = 'https://safee-y8iw.onrender.com/api'
   console.log('⚠️ Using fallback API:', fallbackApi)
@@ -75,7 +75,7 @@ function processQueue(error: Error | null, token: string | null = null) {
       reject(new Error('No token available'))
     }
   })
-  
+
   failedQueue = []
 }
 
@@ -103,13 +103,13 @@ async function refreshAuthToken(): Promise<string> {
 
   try {
     const refreshUrl = `${API_BASE}/auth/refresh`
-    console.log('🔄 Attempting token refresh...', { 
-      apiBase: API_BASE, 
+    console.log('🔄 Attempting token refresh...', {
+      apiBase: API_BASE,
       refreshUrl,
       isProduction: import.meta.env.PROD,
       origin: window.location.origin
     })
-    
+
     const response = await fetch(refreshUrl, {
       method: 'POST',
       credentials: 'include',
@@ -122,7 +122,7 @@ async function refreshAuthToken(): Promise<string> {
       console.log('❌ Token refresh failed with status:', response.status)
       const errorText = await response.text().catch(() => 'Unknown error')
       console.log('❌ Token refresh error details:', errorText)
-      
+
       // Log additional context for debugging
       console.log('🔍 Refresh context:', {
         status: response.status,
@@ -130,18 +130,18 @@ async function refreshAuthToken(): Promise<string> {
         url: refreshUrl,
         headers: Object.fromEntries(response.headers.entries())
       })
-      
+
       throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
     const newToken = data.access
-    
+
     if (!newToken) {
       console.error('❌ Token refresh returned no access token')
       throw new Error('No access token received')
     }
-    
+
     console.log('✅ Token refresh successful', {
       tokenLength: newToken.length,
       tokenPrefix: newToken.substring(0, 20) + '...'
@@ -150,25 +150,25 @@ async function refreshAuthToken(): Promise<string> {
     sessionStorage.removeItem('last-refresh-failure')
     setAuthToken(newToken)
     processQueue(null, newToken)
-    
+
     return newToken
   } catch (error) {
     console.error('❌ Token refresh error:', error)
     // Record the failure timestamp
     sessionStorage.setItem('last-refresh-failure', Date.now().toString())
-    
+
     const err = error instanceof Error ? error : new Error('Token refresh failed')
     processQueue(err)
     setAuthToken(null)
-    
+
     // Clear stored user data on refresh failure
     localStorage.removeItem('user')
-    
+
     // Only redirect if we're not already on login/register pages and not in the middle of navigation
     const currentPath = window.location.pathname
-    const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery' || 
-                        currentPath.includes('/login') || currentPath.includes('/register') || currentPath.includes('/recovery')
-    
+    const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery' ||
+      currentPath.includes('/login') || currentPath.includes('/register') || currentPath.includes('/recovery')
+
     if (!isPublicPage) {
       console.log('🔄 Redirecting to login due to token refresh failure', {
         currentPath,
@@ -198,7 +198,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`
-  
+
   let config: RequestInit = {
     headers: {},
     credentials: 'include', // Include cookies
@@ -227,27 +227,27 @@ async function request<T>(
 
   try {
     let response = await fetch(url, config)
-    
+
     // If unauthorized and we have a token, try to refresh it
     // Also handle 500 errors as potential auth issues in production
     if ((response.status === 401 || response.status === 500) && authToken && !endpoint.includes('/auth/')) {
       console.log(`🔒 Auth-related error (${response.status}), attempting token refresh...`)
       try {
         const newToken = await refreshAuthToken()
-        
+
         // Retry the original request with the new token
         config.headers = {
           ...config.headers,
           Authorization: `Bearer ${newToken}`,
         }
-        
+
         response = await fetch(url, config)
       } catch (refreshError) {
         console.error('❌ Token refresh failed, clearing auth state')
         // Clear invalid auth state and redirect to login
         const currentPath = window.location.pathname
         const isPublicPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/recovery'
-        
+
         if (!isPublicPage && !sessionStorage.getItem('redirecting-to-login')) {
           console.log('🔄 Redirecting to login due to auth failure')
           sessionStorage.setItem('redirecting-to-login', 'true')
@@ -263,7 +263,7 @@ async function request<T>(
         throw new APIError(401, 'Authentication failed')
       }
     }
-    
+
     if (!response.ok) {
       let errorData: any
       try {
@@ -271,9 +271,9 @@ async function request<T>(
       } catch {
         errorData = { error: `HTTP ${response.status} - ${response.statusText}` }
       }
-      
+
       console.error(`❌ API Error [${response.status}] on ${endpoint}:`, errorData)
-      
+
       // Provide more specific error messages
       if (response.status === 401) {
         throw new APIError(response.status, errorData.error || 'Authentication required. Please log in again.')
@@ -282,7 +282,7 @@ async function request<T>(
       } else if (response.status === 403) {
         throw new APIError(response.status, errorData.error || 'Access denied.')
       }
-      
+
       throw new APIError(response.status, errorData.error || `HTTP ${response.status}`)
     }
 
@@ -307,17 +307,17 @@ export const authAPI = {
     }),
 
   login: (identifier: string, password: string) =>
-    request<{ 
-      access: string; 
-      requires2FA?: boolean; 
-      user?: { 
-        id: string; 
-        email: string; 
+    request<{
+      access: string;
+      requires2FA?: boolean;
+      user?: {
+        id: string;
+        email: string;
         username: string;
         role: string;
         permissions: any;
         twoFactorEnabled: boolean;
-      } 
+      }
     }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ identifier, password }),
@@ -494,9 +494,9 @@ export const emailOTPAPI = {
 
   // Get OTP configuration
   getConfig: () =>
-    request<{ 
-      expirationMinutes: number; 
-      maxAttempts: number; 
+    request<{
+      expirationMinutes: number;
+      maxAttempts: number;
       resendDelaySeconds: number;
       dailyLimit: number;
     }>('/otp/config'),
@@ -529,8 +529,8 @@ export const emailOTPAPI = {
 
   // Check if registration data is available (before email verification)
   checkRegistrationData: (username: string, email: string, phoneNumber: string) =>
-    request<{ 
-      available: boolean; 
+    request<{
+      available: boolean;
       conflictType?: 'email' | 'username' | 'phoneNumber';
       error?: string;
       message?: string;
@@ -541,8 +541,8 @@ export const emailOTPAPI = {
 
   // Complete email-based login after OTP verification
   completeEmailLogin: (email: string) =>
-    request<{ 
-      access: string; 
+    request<{
+      access: string;
       user: { id: string; email: string; username: string; twoFactorEnabled?: boolean; }
       requires2FA?: boolean;
     }>('/auth/email-login', {
@@ -593,12 +593,27 @@ export const notesAPI = {
     }),
 }
 
+
 // Health check
 export const healthAPI = {
   check: () => request<{ status: string }>('/health'),
 }
 
-// Files API
+// AI API
+export const aiAPI = {
+  summarize: (content: string) =>
+    request<{ summary: string }>('/ai/summarize', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
+  extractKeywords: (content: string) =>
+    request<{ keywords: string[] }>('/ai/keywords', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+}
+
 export const filesAPI = {
   requestUploadUrl: (uploadData: {
     fileName: string
@@ -726,16 +741,16 @@ export const filesAPI = {
     if (options?.height) params.append('height', options.height.toString())
     if (options?.quality) params.append('quality', options.quality)
     if (options?.format) params.append('format', options.format)
-    
+
     const queryString = params.toString()
     const url = `/files/${fileId}/optimized${queryString ? `?${queryString}` : ''}`
-    
+
     return request<{ optimizedUrl: string }>(url)
   },
 
   getPreview: async (fileId: string, password: string) => {
     console.log('API: Getting preview for file:', fileId)
-    
+
     try {
       const response = await request<{
         type: 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'code' | 'document' | 'unsupported'
@@ -746,29 +761,29 @@ export const filesAPI = {
         method: 'POST',
         body: JSON.stringify({ password }),
       })
-      
+
       console.log('API: Preview response:', response)
-      
+
       // The server is returning URLs to encrypted content
       // We need to download and decrypt the content on the client side for all file types
       if (response.type === 'image' || response.type === 'pdf' || response.type === 'video' || response.type === 'audio' || response.type === 'text' || response.type === 'code') {
         try {
           console.log('Downloading encrypted content for decryption:', response.content)
-          
+
           // Download the encrypted content
           const contentResponse = await fetch(response.content)
           console.log('Content response status:', contentResponse.status, contentResponse.statusText)
-          
+
           if (!contentResponse.ok) {
             throw new Error(`Failed to download encrypted content: ${contentResponse.status}`)
           }
-          
+
           const encryptedBlob = await contentResponse.blob()
           console.log('Downloaded encrypted blob, size:', encryptedBlob.size)
-          
+
           // Import the decryption functions
           const { decryptFile } = await import('../crypto/files')
-          
+
           // For file decryption, we need to use the user's master key
           // Since we don't have the user's actual password, we'll use the session-based approach
           // that derives the key from user ID (same as in useCrypto hook)
@@ -776,10 +791,10 @@ export const filesAPI = {
           if (!userString) {
             throw new Error('User not found in session')
           }
-          
+
           const user = JSON.parse(userString)
           console.log('User found for decryption:', user.id)
-          
+
           // Derive master key using the same approach as useCrypto
           const keyMaterial = await window.crypto.subtle.importKey(
             'raw',
@@ -788,7 +803,7 @@ export const filesAPI = {
             false,
             ['deriveBits', 'deriveKey']
           )
-          
+
           const masterKey = await window.crypto.subtle.deriveKey(
             {
               name: 'PBKDF2',
@@ -801,9 +816,9 @@ export const filesAPI = {
             false,
             ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
           )
-          
+
           console.log('Master key derived for file decryption')
-          
+
           // Get the file metadata to extract encryption info
           const fileMetadata = await request<{
             id: string
@@ -814,9 +829,9 @@ export const filesAPI = {
             encryptedMimeType: string
             uploadedAt: string
           }>(`/files/${fileId}/metadata`)
-          
+
           console.log('File metadata:', fileMetadata)
-          
+
           // Create metadata object for decryption (matching the structure from encryptFile)
           const metadata = {
             encryptedName: fileMetadata.encryptedName,
@@ -826,43 +841,43 @@ export const filesAPI = {
             iv: '', // IV is embedded in the encrypted file data
             chunkSize: 64 * 1024 // Default chunk size from crypto/files.ts
           }
-          
+
           console.log('Decrypting file with metadata:', metadata)
-          
+
           // Decrypt the file
           const { file: decryptedFile, mimeType } = await decryptFile(encryptedBlob, metadata, masterKey)
-          
+
           console.log('File decrypted successfully, size:', decryptedFile.size, 'type:', mimeType)
-          
+
           // For text/code files, read the content as text
           if (response.type === 'text' || response.type === 'code') {
             const text = await decryptedFile.text()
             console.log('Text content extracted, length:', text.length)
-            
+
             return {
               type: response.type,
               content: text,
               error: undefined
             }
           }
-          
+
           // For PDFs, return the raw Uint8Array data for SecurePDFViewer
           if (response.type === 'pdf') {
             const arrayBuffer = await decryptedFile.arrayBuffer()
             const uint8Array = new Uint8Array(arrayBuffer)
             console.log('Returning PDF as Uint8Array, size:', uint8Array.length)
-            
+
             return {
               type: response.type,
               content: uint8Array,
               error: undefined
             }
           }
-          
+
           // For other binary files (images, videos, etc.), create blob URL
           const blobUrl = URL.createObjectURL(decryptedFile)
           console.log('Created decrypted blob URL:', blobUrl)
-          
+
           return {
             type: response.type,
             content: blobUrl,
@@ -870,7 +885,7 @@ export const filesAPI = {
           }
         } catch (decryptError) {
           console.error('Failed to decrypt content for preview:', decryptError)
-          
+
           // Fallback to direct URL (will likely fail but better than nothing)
           return {
             type: response.type,
@@ -879,7 +894,7 @@ export const filesAPI = {
           }
         }
       }
-      
+
       // For text/code, the content should already be decrypted server-side
       return {
         type: response.type,

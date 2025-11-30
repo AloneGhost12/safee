@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { useApp } from '@/context/AppContext'
 import { authAPI } from '@/lib/api'
 import { SharedLayout } from '@/components/SharedLayout'
-import { 
-  Settings, 
-  Shield, 
+import {
+  Settings,
+  Shield,
   Key,
   Download,
   Upload,
@@ -26,20 +27,20 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  
+
   // Security settings
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPasswords, setShowPasswords] = useState(false)
-  
+
   // View password settings
   const [hasViewPassword, setHasViewPassword] = useState(false)
   const [viewPassword, setViewPassword] = useState('')
   const [confirmViewPassword, setConfirmViewPassword] = useState('')
   const [showViewPasswords, setShowViewPasswords] = useState(false)
   const [currentPasswordForView, setCurrentPasswordForView] = useState('')
-  
+
   // 2FA settings
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
@@ -51,7 +52,7 @@ export function SettingsPage() {
     totalCodes: number
     generated?: string
   } | null>(null)
-  
+
   // Security questions
   const [securityQuestions, setSecurityQuestions] = useState([
     { question: '', answer: '' },
@@ -60,11 +61,17 @@ export function SettingsPage() {
   ])
   const [hasSecurityQuestions, setHasSecurityQuestions] = useState(false)
 
+  // Preferences
+  const [darkMode, setDarkMode] = useState(false)
+  const [notifications, setNotifications] = useState(true)
+  const [aiEnabled, setAiEnabled] = useState(true)
+  const [autoSave, setAutoSave] = useState(true)
+
   // Load 2FA status when component mounts
   useEffect(() => {
     const load2FAStatus = async () => {
       if (!state.user) return
-      
+
       try {
         // Use the 2FA status from user context first, then fall back to localStorage
         if (state.user.twoFactorEnabled !== undefined) {
@@ -74,9 +81,9 @@ export function SettingsPage() {
           if (saved2FAStatus === 'true') {
             setTwoFactorEnabled(true)
             // Update user context with 2FA status
-            dispatch({ 
-              type: 'SET_USER', 
-              payload: { ...state.user, twoFactorEnabled: true } 
+            dispatch({
+              type: 'SET_USER',
+              payload: { ...state.user, twoFactorEnabled: true }
             })
           }
         }
@@ -91,7 +98,7 @@ export function SettingsPage() {
   // Load backup codes info
   const loadBackupCodesInfo = async () => {
     if (!state.user || !twoFactorEnabled) return
-    
+
     try {
       const info = await authAPI.getBackupCodesInfo()
       setBackupCodesInfo(info)
@@ -112,12 +119,12 @@ export function SettingsPage() {
       setError('Please fill in all password fields')
       return
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match')
       return
     }
-    
+
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters')
       return
@@ -131,7 +138,7 @@ export function SettingsPage() {
       // In a real app, you'd call an API to change password
       // For now, just simulate success
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       setSuccess('Password changed successfully')
       setCurrentPassword('')
       setNewPassword('')
@@ -145,7 +152,7 @@ export function SettingsPage() {
 
   const handleEnable2FA = async () => {
     if (!state.user) return
-    
+
     setLoading(true)
     setError('')
 
@@ -171,26 +178,26 @@ export function SettingsPage() {
     try {
       const response = await authAPI.verify2FA(state.user.email, verificationCode)
       setTwoFactorEnabled(true)
-      
+
       // Save 2FA status to localStorage
       localStorage.setItem(`2fa_enabled_${state.user.id}`, 'true')
-      
+
       // Update user context with 2FA status
-      dispatch({ 
-        type: 'SET_USER', 
-        payload: { ...state.user, twoFactorEnabled: true } 
+      dispatch({
+        type: 'SET_USER',
+        payload: { ...state.user, twoFactorEnabled: true }
       })
-      
+
       // Handle backup codes if returned
       if (response.backupCodes) {
         setBackupCodes(response.backupCodes)
         setShowBackupCodes(true)
       }
-      
+
       setQrCodeUrl('')
       setVerificationCode('')
       setSuccess('Two-factor authentication enabled successfully! Save your backup codes in a secure location.')
-      
+
       // Load backup codes info
       loadBackupCodesInfo()
     } catch (err: any) {
@@ -211,21 +218,21 @@ export function SettingsPage() {
     try {
       await authAPI.disable2FA(state.user.email)
       setTwoFactorEnabled(false)
-      
+
       // Clear backup codes
       setBackupCodes([])
       setBackupCodesInfo(null)
       setShowBackupCodes(false)
-      
+
       // Remove 2FA status from localStorage
       localStorage.removeItem(`2fa_enabled_${state.user.id}`)
-      
+
       // Update user context with 2FA status
-      dispatch({ 
-        type: 'SET_USER', 
-        payload: { ...state.user, twoFactorEnabled: false } 
+      dispatch({
+        type: 'SET_USER',
+        payload: { ...state.user, twoFactorEnabled: false }
       })
-      
+
       setSuccess('Two-factor authentication disabled')
     } catch (err: any) {
       setError(err.message || 'Failed to disable 2FA')
@@ -247,7 +254,7 @@ export function SettingsPage() {
       setBackupCodes(response.backupCodes)
       setShowBackupCodes(true)
       setSuccess('New backup codes generated successfully! Save them in a secure location.')
-      
+
       // Reload backup codes info
       loadBackupCodesInfo()
     } catch (err: any) {
@@ -261,7 +268,7 @@ export function SettingsPage() {
     if (!state.user) return
 
     // Validate questions and answers
-    const validQuestions = securityQuestions.filter(sq => 
+    const validQuestions = securityQuestions.filter(sq =>
       sq.question.trim().length >= 10 && sq.answer.trim().length >= 3
     )
 
@@ -277,7 +284,7 @@ export function SettingsPage() {
       await authAPI.setupSecurityQuestions(validQuestions)
       setHasSecurityQuestions(true)
       setSuccess('Security questions saved successfully!')
-      
+
       // Clear the form
       setSecurityQuestions([
         { question: '', answer: '' },
@@ -321,7 +328,7 @@ export function SettingsPage() {
       await authAPI.setViewPassword(currentPasswordForView, viewPassword)
       setSuccess('View password set successfully!')
       setHasViewPassword(true)
-      
+
       // Clear form
       setCurrentPasswordForView('')
       setViewPassword('')
@@ -357,7 +364,7 @@ export function SettingsPage() {
 
   const handleDownloadBackupCodes = () => {
     if (!backupCodes.length) return
-    
+
     const codesText = `Personal Vault - Two-Factor Authentication Backup Codes
 Generated: ${new Date().toLocaleDateString()}
 
@@ -386,7 +393,7 @@ Store these codes in a secure location and do not share them with anyone.`
   useEffect(() => {
     const checkSecurityQuestions = async () => {
       if (!state.user) return
-      
+
       try {
         const response = await authAPI.getMySecurityQuestions()
         setHasSecurityQuestions(response.questions.length > 0)
@@ -418,7 +425,7 @@ Store these codes in a secure location and do not share them with anyone.`
     try {
       setLoading(true)
       setError('')
-      
+
       // Create comprehensive backup data
       const data = {
         version: '1.0',
@@ -433,7 +440,7 @@ Store these codes in a secure location and do not share them with anyone.`
           export_type: 'full_backup'
         }
       }
-      
+
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -443,7 +450,7 @@ Store these codes in a secure location and do not share them with anyone.`
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      
+
       setSuccess(`Data exported successfully! Downloaded ${(state.notes || []).length} notes.`)
     } catch (err: any) {
       setError('Failed to export data: ' + (err.message || 'Unknown error'))
@@ -456,7 +463,7 @@ Store these codes in a secure location and do not share them with anyone.`
     try {
       setError('')
       setSuccess('')
-      
+
       // Create file input element
       const input = document.createElement('input')
       input.type = 'file'
@@ -464,22 +471,22 @@ Store these codes in a secure location and do not share them with anyone.`
       input.onchange = async (e) => {
         const file = (e.target as HTMLInputElement).files?.[0]
         if (!file) return
-        
+
         setLoading(true)
-        
+
         try {
           const text = await file.text()
           const importedData = JSON.parse(text)
-          
+
           // Validate imported data structure
           if (!importedData.notes || !Array.isArray(importedData.notes)) {
             throw new Error('Invalid backup file format')
           }
-          
+
           // Import notes
           let importedCount = 0
           const existingNoteIds = new Set((state.notes || []).map(note => note.id))
-          
+
           for (const note of importedData.notes) {
             // Skip notes that already exist
             if (!existingNoteIds.has(note.id)) {
@@ -487,27 +494,61 @@ Store these codes in a secure location and do not share them with anyone.`
               importedCount++
             }
           }
-          
+
           if (importedCount === 0) {
             setSuccess('All notes from the backup already exist in your vault.')
           } else {
             setSuccess(`Successfully imported ${importedCount} notes from backup file.`)
           }
-          
+
         } catch (parseError: any) {
           setError('Failed to import data: ' + (parseError.message || 'Invalid file format'))
         } finally {
           setLoading(false)
         }
       }
-      
+
       input.click()
     } catch (err: any) {
       setError('Failed to import data: ' + (err.message || 'Unknown error'))
     }
   }
 
+  // Load preferences
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true'
+    const savedNotifications = localStorage.getItem('notifications') !== 'false'
+    const savedAiEnabled = localStorage.getItem('aiEnabled') !== 'false'
+    const savedAutoSave = localStorage.getItem('autoSave') !== 'false'
+
+    setDarkMode(savedDarkMode)
+    setNotifications(savedNotifications)
+    setAiEnabled(savedAiEnabled)
+    setAutoSave(savedAutoSave)
+
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
+  const handleSavePreferences = () => {
+    localStorage.setItem('darkMode', darkMode.toString())
+    localStorage.setItem('notifications', notifications.toString())
+    localStorage.setItem('aiEnabled', aiEnabled.toString())
+    localStorage.setItem('autoSave', autoSave.toString())
+
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+
+    setSuccess('Preferences saved successfully!')
+    setTimeout(() => setSuccess(''), 2000)
+  }
+
   const tabs = [
+    { id: 'preferences', label: 'Preferences', icon: Settings },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'data', label: 'Data & Privacy', icon: Download },
     { id: 'account', label: 'Account', icon: Settings },
@@ -544,11 +585,10 @@ Store these codes in a secure location and do not share them with anyone.`
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === tab.id
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-900 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
                     <span className="text-xs sm:text-sm">{tab.label}</span>
@@ -561,6 +601,97 @@ Store these codes in a secure location and do not share them with anyone.`
           {/* Content */}
           <div className="lg:col-span-3">
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+              {activeTab === 'preferences' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      Appearance
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                          <Label className="text-base font-medium">Dark Mode</Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Enable dark theme for better visibility in low light
+                          </p>
+                        </div>
+                        <Switch
+                          checked={darkMode}
+                          onCheckedChange={setDarkMode}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      Notifications
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                          <Label className="text-base font-medium">Enable Notifications</Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Receive alerts for important events
+                          </p>
+                        </div>
+                        <Switch
+                          checked={notifications}
+                          onCheckedChange={setNotifications}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <span className="text-purple-500">✨</span> AI Features
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                          <Label className="text-base font-medium">Enable AI Assistant</Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Use AI for summarization, search, and debugging
+                          </p>
+                        </div>
+                        <Switch
+                          checked={aiEnabled}
+                          onCheckedChange={setAiEnabled}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      Editor
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between py-3">
+                        <div>
+                          <Label className="text-base font-medium">Auto-save</Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Automatically save changes as you type
+                          </p>
+                        </div>
+                        <Switch
+                          checked={autoSave}
+                          onCheckedChange={setAutoSave}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Button onClick={handleSavePreferences} className="gap-2">
+                      <Check className="h-4 w-4" />
+                      Save Preferences
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'security' && (
                 <div className="space-y-6 sm:space-y-8">
                   <div>
@@ -587,7 +718,7 @@ Store these codes in a secure location and do not share them with anyone.`
                           </button>
                         </div>
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="new-password">New Password</Label>
                         <Input
@@ -598,7 +729,7 @@ Store these codes in a secure location and do not share them with anyone.`
                           disabled={loading}
                         />
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="confirm-password">Confirm New Password</Label>
                         <Input
@@ -609,7 +740,7 @@ Store these codes in a secure location and do not share them with anyone.`
                           disabled={loading}
                         />
                       </div>
-                      
+
                       <Button onClick={handlePasswordChange} disabled={loading} size="sm">
                         <Key className="h-4 w-4 mr-2" />
                         {loading ? 'Changing...' : 'Change Password'}
@@ -621,7 +752,7 @@ Store these codes in a secure location and do not share them with anyone.`
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                       Two-Factor Authentication (2FA)
                     </h3>
-                    
+
                     {!twoFactorEnabled ? (
                       <div className="space-y-4">
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -643,7 +774,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             </p>
                           </div>
                         </div>
-                        
+
                         {!qrCodeUrl ? (
                           <div className="space-y-3">
                             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -667,13 +798,13 @@ Store these codes in a secure location and do not share them with anyone.`
                                 <li>Enter the 6-digit code that appears</li>
                               </ol>
                             </div>
-                            
+
                             <div>
                               <p className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                                 🔲 Scan this QR code with your authenticator app:
                               </p>
                               <div className="bg-white p-4 rounded-lg inline-block border">
-                                <img 
+                                <img
                                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrCodeUrl)}`}
                                   alt="QR Code for 2FA Setup"
                                   className="w-32 h-32 sm:w-40 sm:h-40"
@@ -683,7 +814,7 @@ Store these codes in a secure location and do not share them with anyone.`
                                 Can't scan? Most apps also allow manual entry of the secret key.
                               </p>
                             </div>
-                            
+
                             <div>
                               <Label htmlFor="verification-code" className="text-sm font-medium">
                                 🔢 Enter Verification Code
@@ -701,9 +832,9 @@ Store these codes in a secure location and do not share them with anyone.`
                                 The code changes every 30 seconds
                               </p>
                             </div>
-                            
-                            <Button 
-                              onClick={handleVerify2FA} 
+
+                            <Button
+                              onClick={handleVerify2FA}
                               disabled={loading || !verificationCode || verificationCode.length !== 6}
                               size="sm"
                               className="w-full"
@@ -724,7 +855,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             Your account is now protected with 2FA. You'll need both your password and your phone to log in.
                           </p>
                         </div>
-                        
+
                         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                           <h4 className="font-medium text-yellow-900 dark:text-yellow-200 mb-2">
                             ⚠️ Important Security Notes
@@ -742,7 +873,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             <Key className="h-4 w-4 mr-2" />
                             Recovery Backup Codes
                           </h4>
-                          
+
                           {backupCodesInfo && (
                             <div className="mb-3">
                               <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -757,16 +888,16 @@ Store these codes in a secure location and do not share them with anyone.`
                           )}
 
                           <div className="space-y-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={handleRegenerateBackupCodes}
                               disabled={loading}
                             >
                               <Key className="h-4 w-4 mr-2" />
                               {loading ? 'Generating...' : 'Generate New Codes'}
                             </Button>
-                            
+
                             <p className="text-xs text-blue-700 dark:text-blue-400">
                               Use backup codes to sign in if you lose access to your authenticator app.
                             </p>
@@ -780,7 +911,7 @@ Store these codes in a secure location and do not share them with anyone.`
                               <AlertCircle className="h-4 w-4 mr-2" />
                               Your Backup Codes
                             </h4>
-                            
+
                             <div className="bg-white dark:bg-gray-800 border rounded p-3 mb-3">
                               <div className="grid grid-cols-2 gap-2 font-mono text-sm">
                                 {backupCodes.map((code, index) => (
@@ -790,26 +921,26 @@ Store these codes in a secure location and do not share them with anyone.`
                                 ))}
                               </div>
                             </div>
-                            
+
                             <div className="flex flex-wrap gap-2 mb-3">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={handleDownloadBackupCodes}
                               >
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
                               </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => setShowBackupCodes(false)}
                               >
                                 <X className="h-4 w-4 mr-2" />
                                 Hide
                               </Button>
                             </div>
-                            
+
                             <div className="text-xs text-red-700 dark:text-red-400 space-y-1">
                               <p>⚠️ <strong>Save these codes immediately!</strong></p>
                               <p>• Each code can only be used once</p>
@@ -818,7 +949,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             </div>
                           </div>
                         )}
-                        
+
                         <Button variant="destructive" onClick={handleDisable2FA} disabled={loading} size="sm">
                           {loading ? 'Disabling...' : 'Disable 2FA'}
                         </Button>
@@ -831,7 +962,7 @@ Store these codes in a secure location and do not share them with anyone.`
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                       View Password
                     </h3>
-                    
+
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                       <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
                         🔍 What is a View Password?
@@ -851,7 +982,7 @@ Store these codes in a secure location and do not share them with anyone.`
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Create a view password to enable read-only access to your vault.
                         </p>
-                        
+
                         <div>
                           <Label htmlFor="current-password-view">Current Password (for verification)</Label>
                           <div className="relative">
@@ -872,7 +1003,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             </button>
                           </div>
                         </div>
-                        
+
                         <div>
                           <Label htmlFor="view-password">View Password</Label>
                           <Input
@@ -884,7 +1015,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             placeholder="Create a view password"
                           />
                         </div>
-                        
+
                         <div>
                           <Label htmlFor="confirm-view-password">Confirm View Password</Label>
                           <Input
@@ -896,7 +1027,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             placeholder="Confirm view password"
                           />
                         </div>
-                        
+
                         <Button onClick={handleSetViewPassword} disabled={loading} size="sm">
                           <Eye className="h-4 w-4 mr-2" />
                           {loading ? 'Creating...' : 'Set View Password'}
@@ -913,7 +1044,7 @@ Store these codes in a secure location and do not share them with anyone.`
                             You can now use your view password for read-only access to your vault.
                           </p>
                         </div>
-                        
+
                         <div className="space-y-3">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Enter your current password to remove the view password:
@@ -955,7 +1086,7 @@ Store these codes in a secure location and do not share them with anyone.`
                         Security Questions
                       </h3>
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                       Set up security questions as an additional recovery method if you lose access to your 2FA device and backup codes.
                     </p>
@@ -969,9 +1100,9 @@ Store these codes in a secure location and do not share them with anyone.`
                         <p className="text-sm text-green-700 dark:text-green-300">
                           You can use these questions for account recovery if you lose access to all other methods.
                         </p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="mt-3"
                           onClick={() => {
                             setHasSecurityQuestions(false)
@@ -1042,14 +1173,14 @@ Store these codes in a secure location and do not share them with anyone.`
                           ))}
                         </div>
 
-                        <Button 
+                        <Button
                           onClick={handleSetupSecurityQuestions}
                           disabled={loading || securityQuestions.some(sq => sq.question.length < 10 || sq.answer.length < 3)}
                           size="sm"
                         >
                           {loading ? 'Saving...' : 'Save Security Questions'}
                         </Button>
-                        
+
                         {securityQuestions.some(sq => sq.question.length < 10 || sq.answer.length < 3) && (
                           <p className="text-xs text-red-600 mt-2">
                             ⚠️ Button disabled: All questions need 10+ characters and all answers need 3+ characters
@@ -1070,8 +1201,8 @@ Store these codes in a secure location and do not share them with anyone.`
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                       Download a complete backup of your notes and data in JSON format.
                     </p>
-                    <Button 
-                      onClick={handleExportData} 
+                    <Button
+                      onClick={handleExportData}
                       size="sm"
                       disabled={loading}
                     >
@@ -1088,9 +1219,9 @@ Store these codes in a secure location and do not share them with anyone.`
                       Import notes from a backup file. Only new notes will be imported (duplicates will be skipped).
                     </p>
                     <div className="space-y-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleImportData}
                         disabled={loading}
                       >
@@ -1130,21 +1261,21 @@ Store these codes in a secure location and do not share them with anyone.`
                           {state.user?.email}
                         </p>
                       </div>
-                      
+
                       <div>
                         <Label>Account Created</Label>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {new Date().toLocaleDateString()} (Demo)
                         </p>
                       </div>
-                      
+
                       <div>
                         <Label>Total Notes</Label>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {(state.notes || []).length}
                         </p>
                       </div>
-                      
+
                       <div>
                         <Label>Two-Factor Authentication</Label>
                         <div className="flex items-center space-x-2">

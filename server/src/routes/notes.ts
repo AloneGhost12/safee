@@ -8,32 +8,32 @@ const router = Router()
 router.use(requireAuth)
 
 // Support both old format (title, content) and new encrypted format (ciphertext, iv)
-const createSchema = z.object({ 
+const createSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
-  ciphertext: z.string().optional(), 
-  iv: z.string().optional(), 
-  tags: z.array(z.string()).optional() 
-}).refine(data => 
-  (data.title !== undefined && data.content !== undefined) || 
+  ciphertext: z.string().optional(),
+  iv: z.string().optional(),
+  tags: z.array(z.string()).optional()
+}).refine(data =>
+  (data.title !== undefined && data.content !== undefined) ||
   (data.ciphertext !== undefined && data.iv !== undefined),
   {
     message: "Either (title and content) or (ciphertext and iv) must be provided"
   }
 )
 
-const updateSchema = z.object({ 
+const updateSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
-  ciphertext: z.string().optional(), 
-  iv: z.string().optional(), 
-  tags: z.array(z.string()).optional() 
+  ciphertext: z.string().optional(),
+  iv: z.string().optional(),
+  tags: z.array(z.string()).optional()
 })
 
 router.post('/', async (req: AuthedRequest, res) => {
   const parsed = createSchema.parse(req.body)
   const col = notesCollection()
-  
+
   // Handle both old and new formats
   const baseDoc = {
     userId: new ObjectId(req.userId),
@@ -41,7 +41,7 @@ router.post('/', async (req: AuthedRequest, res) => {
     createdAt: new Date(),
     updatedAt: new Date()
   }
-  
+
   let doc
   if (parsed.ciphertext && parsed.iv) {
     // New encrypted format
@@ -50,9 +50,9 @@ router.post('/', async (req: AuthedRequest, res) => {
     // Old plain text format
     doc = { ...baseDoc, title: parsed.title, content: parsed.content, isEncrypted: false }
   }
-  
+
   const result = await col.insertOne(doc as any)
-  
+
   // Return the created note in a format the client expects
   const createdNote = {
     id: result.insertedId.toHexString(),
@@ -63,14 +63,14 @@ router.post('/', async (req: AuthedRequest, res) => {
     updatedAt: doc.updatedAt.toISOString(),
     isEncrypted: !!parsed.ciphertext
   }
-  
+
   res.json({ note: createdNote })
 })
 
 router.get('/', async (req: AuthedRequest, res) => {
   const col = notesCollection()
   const docs = await col.find({ userId: new ObjectId(req.userId), deletedAt: { $exists: false } }).toArray()
-  
+
   // Transform docs to client format
   const notes = docs.map(doc => ({
     id: doc._id.toHexString(),
@@ -82,14 +82,14 @@ router.get('/', async (req: AuthedRequest, res) => {
     isDeleted: !!doc.deletedAt,
     isEncrypted: doc.isEncrypted || !!doc.ciphertext
   }))
-  
+
   res.json({ notes })
 })
 
 router.get('/deleted', async (req: AuthedRequest, res) => {
   const col = notesCollection()
   const docs = await col.find({ userId: new ObjectId(req.userId), deletedAt: { $exists: true } }).toArray()
-  
+
   // Transform docs to client format
   const notes = docs.map(doc => ({
     id: doc._id.toHexString(),
@@ -102,7 +102,7 @@ router.get('/deleted', async (req: AuthedRequest, res) => {
     isDeleted: true,
     isEncrypted: doc.isEncrypted || !!doc.ciphertext
   }))
-  
+
   res.json({ notes })
 })
 
@@ -114,55 +114,74 @@ router.get('/:id', async (req: AuthedRequest, res) => {
 })
 
 router.put('/:id', async (req: AuthedRequest, res) => {
-  const parsed = updateSchema.parse(req.body)
-  const col = notesCollection()
-  
-  // Build update object based on format
-  let updateDoc: any = {
-    updatedAt: new Date(),
-    tags: parsed.tags
+  try {
+    const parsed = updateSchema.parse(req.body)
+    const col = notesCollection()
+
+    // Build update object based on format
+    let setDoc: any = {
+      updatedAt: new Date()
+    }
+
+    let unsetDoc: any = {}
+
+    if (parsed.ciphertext && parsed.iv) {
+      // New encrypted format
+      setDoc.ciphertext = parsed.ciphertext
+      setDoc.iv = parsed.iv
+      setDoc.isEncrypted = true
+      if (parsed.tags) setDoc.tags = parsed.tags
+      // Remove old format fields
+      unsetDoc.title = ''
+      unsetDoc.content = ''
+    } else {
+      // Old plain text format
+      setDoc.title = parsed.title
+      setDoc.content = parsed.content
+      setDoc.isEncrypted = false
+      if (parsed.tags) setDoc.tags = parsed.tags
+      // Remove new format fields
+      unsetDoc.ciphertext = ''
+      unsetDoc.iv = ''
+    }
+
+    const updateOperation: any = { $set: setDoc }
+    if (Object.keys(unsetDoc).length > 0) {
+      updateOperation.$unset = unsetDoc
+    }
+
+    const result = await col.updateOne(
+      { _id: new ObjectId(req.params.id), userId: new ObjectId(req.userId) },
+      updateOperation
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Note not found' })
+    }
+
+    // Fetch the updated note to return
+    const updatedNote = await col.findOne({ _id: new ObjectId(req.params.id), userId: new ObjectId(req.userId) })
+
+    if (!updatedNote) {
+      return res.status(404).json({ error: 'Note not found after update' })
+    }
+
+    const note = {
+      id: updatedNote._id.toHexString(),
+      title: updatedNote.title || 'Encrypted Note',
+      content: updatedNote.content || 'Encrypted Content',
+      tags: updatedNote.tags || [],
+      createdAt: updatedNote.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: updatedNote.updatedAt?.toISOString() || new Date().toISOString(),
+      isDeleted: !!updatedNote.deletedAt,
+      isEncrypted: updatedNote.isEncrypted || !!updatedNote.ciphertext
+    }
+
+    res.json({ note })
+  } catch (error: any) {
+    console.error('❌ Error updating note:', error)
+    res.status(500).json({ error: error.message || 'Failed to update note' })
   }
-  
-  if (parsed.ciphertext && parsed.iv) {
-    // New encrypted format
-    updateDoc.ciphertext = parsed.ciphertext
-    updateDoc.iv = parsed.iv
-    updateDoc.isEncrypted = true
-    // Remove old format fields
-    updateDoc.$unset = { title: '', content: '' }
-  } else {
-    // Old plain text format
-    updateDoc.title = parsed.title
-    updateDoc.content = parsed.content
-    updateDoc.isEncrypted = false
-    // Remove new format fields
-    updateDoc.$unset = { ciphertext: '', iv: '' }
-  }
-  
-  const result = await col.updateOne(
-    { _id: new ObjectId(req.params.id), userId: new ObjectId(req.userId) }, 
-    { $set: updateDoc, ...(updateDoc.$unset ? { $unset: updateDoc.$unset } : {}) }
-  )
-  
-  if (result.matchedCount === 0) {
-    return res.status(404).json({ error: 'Note not found' })
-  }
-  
-  // Fetch the updated note to return
-  const updatedNote = await col.findOne({ _id: new ObjectId(req.params.id), userId: new ObjectId(req.userId) })
-  
-  const note = {
-    id: updatedNote!._id.toHexString(),
-    title: updatedNote!.title || 'Encrypted Note',
-    content: updatedNote!.content || 'Encrypted Content',
-    tags: updatedNote!.tags || [],
-    createdAt: updatedNote!.createdAt?.toISOString() || new Date().toISOString(),
-    updatedAt: updatedNote!.updatedAt?.toISOString() || new Date().toISOString(),
-    isDeleted: !!updatedNote!.deletedAt,
-    isEncrypted: updatedNote!.isEncrypted || !!updatedNote!.ciphertext
-  }
-  
-  res.json({ note })
 })
 
 router.delete('/:id', async (req: AuthedRequest, res) => {

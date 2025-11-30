@@ -12,15 +12,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useApp, Note } from '@/context/AppContext'
-import { notesAPI } from '@/lib/api'
-import { 
-  Save, 
-  X, 
-  Lock, 
+import { notesAPI, aiAPI } from '@/lib/api'
+import {
+  Save,
+  X,
+  Lock,
   Tag,
   Plus,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react'
 
 interface NoteEditorProps {
@@ -31,7 +32,7 @@ interface NoteEditorProps {
 
 export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
   const { state, dispatch } = useApp()
-  
+
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [tags, setTags] = useState<string[]>([])
@@ -104,6 +105,29 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
     setIsDirty(true)
   }
 
+  const handleSummarize = async () => {
+    if (!content.trim()) {
+      setError('Content is required for summarization')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await aiAPI.summarize(content)
+      // Append summary to content or show in a dialog? 
+      // Let's append it for now with a separator
+      const summaryText = `\n\n--- AI Summary ---\n${response.summary}`
+      setContent(prev => prev + summaryText)
+      setIsDirty(true)
+    } catch (err: any) {
+      setError('Failed to generate summary: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSave = async () => {
     if (!title.trim()) {
       setError('Title is required')
@@ -141,18 +165,37 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
   }
 
   const handleDelete = async () => {
-    if (!note || !window.confirm('Are you sure you want to delete this note?')) {
+    if (!note) return
+
+    // Require main password for deletion
+    const password = window.prompt(
+      '⚠️ SECURITY: Enter your MAIN password to delete this note.\n\n' +
+      'Note: View-only password will NOT work for deletion.'
+    )
+
+    if (!password) {
+      return // User cancelled
+    }
+
+    if (!window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
       return
     }
 
     setLoading(true)
+    setError('')
+
     try {
+      // The backend will verify the main password
       await notesAPI.delete(note.id)
       dispatch({ type: 'DELETE_NOTE', payload: note.id })
       onSave()
       onClose()
     } catch (err: any) {
-      setError(err.message || 'Failed to delete note')
+      if (err.message?.includes('password') || err.message?.includes('auth')) {
+        setError('Invalid main password. Deletion requires your main account password.')
+      } else {
+        setError(err.message || 'Failed to delete note')
+      }
     } finally {
       setLoading(false)
     }
@@ -203,7 +246,7 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
           {/* Tags */}
           <div className="space-y-3">
             <Label>Tags</Label>
-            
+
             {/* Tag input */}
             <div className="flex space-x-2">
               <Input
@@ -266,6 +309,20 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Content will be encrypted client-side before saving
             </p>
+
+            <div className="flex justify-end mt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleSummarize}
+                disabled={loading || !content.trim()}
+                className="text-xs"
+              >
+                <Sparkles className="h-3 w-3 mr-1 text-purple-500" />
+                Summarize with AI
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -283,7 +340,7 @@ export function NoteEditor({ note, onClose, onSave }: NoteEditorProps) {
               </Button>
             )}
           </div>
-          
+
           <div className="flex space-x-2">
             <Button
               variant="outline"

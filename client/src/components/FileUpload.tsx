@@ -403,6 +403,15 @@ export function FileUpload({ open, onClose, onUploadComplete }: FileUploadProps)
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
+            onClick={() => {
+              // Allow clicking the drop zone to open file picker when no active uploads are in progress
+              const hasActiveUploads = uploadingFiles.some(f => 
+                f.status === 'encrypting' || f.status === 'uploading' || f.status === 'completing'
+              )
+              if (!hasActiveUploads) {
+                fileInputRef.current?.click()
+              }
+            }}
           >
             <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">

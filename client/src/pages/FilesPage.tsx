@@ -29,7 +29,14 @@ export const FilesPage: React.FC = () => {
     <div className="flex space-x-2">
       <Button
         variant={activeTab === 'browse' ? 'default' : 'outline'}
-        onClick={() => setActiveTab('browse')}
+        onClick={async () => {
+          if (activeTab !== 'browse') {
+            setActiveTab('browse')
+          } else {
+            await fileManagerRef.current?.refreshFiles()
+          }
+        }}
+        title={activeTab === 'browse' ? 'Refresh file list' : 'Show file list'}
         className="flex items-center space-x-2"
         size="sm"
       >

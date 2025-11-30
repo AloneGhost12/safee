@@ -14,16 +14,17 @@ import notesRoutes from './routes/notes'
 import filesRoutes from './routes/files'
 import otpRoutes from './routes/otp'
 import aiDebugRoutes from './routes/aiDebug'
+import aiRoutes from './routes/ai'
 import testRoutes, { initializeTestRunner } from './utils/testRunner'
 import { httpLogger } from './middleware/logger'
 import { errorHandler, notFoundHandler } from './middleware/errors'
 import { validateCloudinaryConfig } from './utils/cloudinary'
 import { setupSecureCORS, validateCORSConfig } from './middleware/cors'
 import { emergencyCORSFix } from './middleware/emergencyCORS'
-import { 
-  setupCSP, 
-  helmetConfig, 
-  configureTrustedProxies 
+import {
+  setupCSP,
+  helmetConfig,
+  configureTrustedProxies
 } from './middleware/security'
 import { adminHoneypot } from './middleware/hiddenAdminAuth'
 import rateLimit from 'express-rate-limit'
@@ -89,6 +90,7 @@ app.use('/api/notes', notesRoutes)
 app.use('/api/files', filesRoutes)
 app.use('/api/otp', otpRoutes)
 app.use('/api/ai-debug', aiDebugRoutes)
+app.use('/api/ai', aiRoutes)
 app.use('/api/test', testRoutes)
 
 // Testing dashboard
@@ -364,7 +366,7 @@ async function start() {
       'ALLOWED_ORIGINS',
       'MONGO_URI'
     ]
-    
+
     const missingCriticalVars = criticalEnvVars.filter(envVar => !process.env[envVar])
     if (missingCriticalVars.length > 0) {
       console.error('❌ Missing critical environment variables:', missingCriticalVars)
@@ -382,29 +384,29 @@ async function start() {
       console.error('❌ Cannot start server without database connection')
       process.exit(1)
     }
-    
+
     // Validate environment configurations
     if (!validateCloudinaryConfig()) {
       console.warn('Cloudinary configuration incomplete - file uploads may be limited')
     }
-    
+
     const port = Number(process.env.PORT || 4000)
     const host = process.env.HOST || '0.0.0.0'
-    
+
     // Create HTTP server for WebSocket support
     const server = createServer(app)
-    
+
     // Initialize test runner with WebSocket support
     if (process.env.NODE_ENV !== 'production') {
       initializeTestRunner(server)
       console.log('🧪 Test runner initialized with WebSocket support')
     }
-    
+
     server.listen(port, host, () => {
       console.log(`🚀 Server running on ${host}:${port}`)
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
       console.log(`🔒 Security features enabled`)
-      
+
       if (process.env.NODE_ENV === 'production') {
         console.log('🛡️  Production security mode active')
       } else {
