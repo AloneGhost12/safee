@@ -198,15 +198,9 @@ function App() {
 
 function AIDebugChatWrapper() {
   const { state } = useApp()
-  const aiDebugEnabled = import.meta.env.DEV || import.meta.env.VITE_AI_DEBUG_ENABLED === 'true'
   
-  // Only show AI Debug Chat for authenticated users
+  // Show AI Debug Chat for authenticated users
   if (!state.user) {
-    return null
-  }
-  
-  // Hide in production unless explicitly enabled
-  if (!aiDebugEnabled) {
     return null
   }
   

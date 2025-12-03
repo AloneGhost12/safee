@@ -1510,24 +1510,64 @@ router.post('/email-login', validateInput(z.object({
     const user = await col.findOne({ email })
     
     if (!user) {
-      await auditLogger.logAuth({
-        action: 'login_failure',
+      // If OTP was verified in this session for login, auto-register a minimal account
+      const sessionOTP = (req as any).session?.otpVerification
+      const otpVerified = sessionOTP && sessionOTP.verified === true && sessionOTP.email === email && sessionOTP.purpose === 'login'
+
+      if (!otpVerified) {
+        await auditLogger.logAuth({
+          action: 'login_failure',
+          email,
+          success: false,
+          failureReason: 'Account not found',
+          ...clientInfo
+        })
+        return res.status(404).json({ 
+          error: 'No account found with this email address' 
+        })
+      }
+
+      // Create a new user account using email after verified OTP
+      const username = email.split('@')[0].toLowerCase()
+      const now = new Date()
+      const newUser: User = {
+        username,
         email,
-        success: false,
-        failureReason: 'Account not found',
-        ...clientInfo
-      })
-      return res.status(404).json({ 
-        error: 'No account found with this email address' 
-      })
+        phoneNumber: '',
+        passwordHash: await hashPassword(Math.random().toString(36).slice(2)),
+        argonSalt: '',
+        userRole: UserRole.ADMIN,
+        createdAt: now,
+        lastLoginAt: now,
+        failedLoginAttempts: 0,
+        accountLocked: false,
+        verificationStatus: {
+          emailVerified: true,
+          phoneVerified: false
+        },
+        securityEvents: [{
+          eventType: 'login_success',
+          timestamp: now,
+          ipAddress: clientInfo.ipAddress,
+          userAgent: clientInfo.userAgent,
+          details: 'Auto-registered via verified email OTP login'
+        }]
+      }
+
+      const insert = await col.insertOne(newUser as any)
+      const insertedUser = await col.findOne({ _id: insert.insertedId })
+      if (!insertedUser) {
+        return res.status(500).json({ error: 'Failed to create account after OTP verification' })
+      }
     }
 
     // Check if user has 2FA enabled and if it's still required
     // Note: We double-check that 2FA is actually enabled since the user might have just disabled it
-    if (user.twoFactorEnabled === true && user.totpSecret) {
+    const finalUser = await col.findOne({ email })
+    if (finalUser && finalUser.twoFactorEnabled === true && finalUser.totpSecret) {
       await auditLogger.logAuth({
         action: 'login_attempt',
-        userId: user._id!.toHexString(),
+        userId: finalUser._id!.toHexString(),
         email,
         success: false,
         failureReason: '2FA required after email verification',
@@ -1538,7 +1578,7 @@ router.post('/email-login', validateInput(z.object({
         requires2FA: true,
         user: {
           id: user._id!.toHexString(),
-          email: user.email,
+          email: finalUser.email,
           twoFactorEnabled: true
         }
       })
@@ -1546,7 +1586,7 @@ router.post('/email-login', validateInput(z.object({
 
     // Update user login info
     await col.updateOne(
-      { _id: user._id },
+      { _id: finalUser!._id },
       { 
         $set: { 
           failedLoginAttempts: 0,
@@ -1556,12 +1596,12 @@ router.post('/email-login', validateInput(z.object({
       }
     )
 
-    const id = user._id!.toHexString()
+    const id = finalUser!._id!.toHexString()
     
     // Create session first to get session ID
     const sessions = sessionsCollection()
     const sessionResult = await sessions.insertOne({ 
-      userId: user._id, 
+      userId: finalUser!._id, 
       refreshToken: '', // Will be updated after JWT creation
       createdAt: new Date(), 
       expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
@@ -1590,7 +1630,7 @@ router.post('/email-login', validateInput(z.object({
     await auditLogger.logAuth({
       action: 'login_success',
       userId: id,
-      email: user.email,
+      email: finalUser!.email,
       success: true,
       ...clientInfo
     })
@@ -1599,11 +1639,11 @@ router.post('/email-login', validateInput(z.object({
       access,
       user: {
         id,
-        email: user.email,
-        username: user.username,
-        twoFactorEnabled: user.twoFactorEnabled || false,
-        role: user.userRole || UserRole.ADMIN,
-        permissions: getUserPermissions(user.userRole || UserRole.ADMIN)
+        email: finalUser!.email,
+        username: finalUser!.username,
+        twoFactorEnabled: finalUser!.twoFactorEnabled || false,
+        role: finalUser!.userRole || UserRole.ADMIN,
+        permissions: getUserPermissions(finalUser!.userRole || UserRole.ADMIN)
       }
     })
   } catch (error) {
