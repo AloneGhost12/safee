@@ -345,6 +345,7 @@ export const authAPI = {
       body: JSON.stringify({ email, code }),
     }).then(result => {
       setAuthToken(result.access)
+      try { localStorage.setItem('user', JSON.stringify(result.user)); } catch {}
       return result
     }),
 
@@ -552,6 +553,7 @@ export const emailOTPAPI = {
       // If login is completed (no additional 2FA), set the auth token
       if (!result.requires2FA && result.access) {
         setAuthToken(result.access)
+        try { if (result.user) localStorage.setItem('user', JSON.stringify(result.user)); } catch {}
       }
       return result
     }),
