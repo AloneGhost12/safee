@@ -489,6 +489,106 @@ ${systemHealth.issues?.length ? systemHealth.issues.join('\n') : 'None'}
       ]
     }
   }
+
+  async generateSummary(content: string): Promise<string> {
+    try {
+      if (!this.enabled) {
+        // Simple fallback: first 2 sentences or 200 chars
+        const trimmed = content.trim();
+        const sentences = trimmed.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ');
+        return sentences.length > 0 ? sentences.slice(0, 500) : trimmed.slice(0, 200);
+      }
+
+      const modelNames = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-pro',
+        'gemini-pro-latest',
+        'gemini-pro'
+      ];
+
+      const prompt = `Summarize the following content in 3-5 concise bullet points. Focus on key facts.\n\nCONTENT:\n${content}`;
+
+      for (const modelName of modelNames) {
+        try {
+          const model = this.genAI.getGenerativeModel({ model: modelName });
+          const result = await this.withTimeout(model.generateContent(prompt), 12000, `generateSummary:${modelName}`);
+          const response = await result.response;
+          const text = response.text().trim();
+          if (text) return text.slice(0, 2000);
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // If all models fail
+      const trimmed = content.trim();
+      return trimmed.slice(0, 300);
+    } catch {
+      const trimmed = content.trim();
+      return trimmed.slice(0, 300);
+    }
+  }
+
+  async extractKeywords(content: string): Promise<string[]> {
+    try {
+      if (!this.enabled) {
+        // Fallback: naive keyword extraction by frequency excluding stopwords
+        const stop = new Set(['the','is','in','at','of','and','a','to','for','on','with','by','an','or','as','from','that','this','it','be','are','was','were']);
+        const words = content
+          .toLowerCase()
+          .match(/[a-z0-9]{3,}/g) || [];
+        const freq: Record<string, number> = {};
+        for (const w of words) {
+          if (stop.has(w)) continue;
+          freq[w] = (freq[w] || 0) + 1;
+        }
+        return Object.entries(freq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([w]) => w);
+      }
+
+      const modelNames = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-pro',
+        'gemini-pro-latest',
+        'gemini-pro'
+      ];
+
+      const prompt = `Extract 8-12 important keywords (single or short phrases) from the content below. Respond with a JSON array of strings only.\n\nCONTENT:\n${content}`;
+
+      for (const modelName of modelNames) {
+        try {
+          const model = this.genAI.getGenerativeModel({ model: modelName });
+          const result = await this.withTimeout(model.generateContent(prompt), 12000, `extractKeywords:${modelName}`);
+          const response = await result.response;
+          const text = response.text().trim();
+          try {
+            const arr = JSON.parse(text);
+            if (Array.isArray(arr)) {
+              return arr.map(String).slice(0, 20);
+            }
+          } catch {
+            // ignore parse error and try next model
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Fallback if all models fail
+      const words = content.toLowerCase().match(/[a-z0-9]{4,}/g) || [];
+      const freq: Record<string, number> = {};
+      for (const w of words) freq[w] = (freq[w] || 0) + 1;
+      return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([w])=>w);
+    } catch {
+      return [];
+    }
+  }
 }
 
 // Create singleton instance
