@@ -1577,7 +1577,7 @@ router.post('/email-login', validateInput(z.object({
       return res.json({ 
         requires2FA: true,
         user: {
-          id: user._id!.toHexString(),
+          id: finalUser._id!.toHexString(),
           email: finalUser.email,
           twoFactorEnabled: true
         }
